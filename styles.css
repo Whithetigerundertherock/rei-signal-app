@@ -394,6 +394,19 @@ textarea:focus-visible {
   letter-spacing: 0;
 }
 
+body[data-screen="stocks"] .top-bar {
+  grid-template-columns: 0 minmax(0, 1fr) 96px;
+}
+
+body[data-screen="stocks"] .top-bar > .icon-btn.is-hidden {
+  display: none;
+}
+
+body[data-screen="stocks"] .top-bar h1 {
+  padding-left: 16px;
+  text-align: left;
+}
+
 .top-actions {
   position: relative;
   display: flex;
@@ -1029,6 +1042,7 @@ textarea:focus-visible {
   min-width: 398px;
   border-collapse: collapse;
   overflow: hidden;
+  background: #000;
   font-size: 14px;
 }
 
@@ -1036,6 +1050,7 @@ textarea:focus-visible {
   overflow-x: auto;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
+  background: #000;
   scrollbar-width: none;
 }
 
@@ -1049,6 +1064,7 @@ textarea:focus-visible {
   text-align: center;
   border-bottom: 1px solid var(--line-soft);
   border-right: 1px solid var(--line-soft);
+  background: #000;
   white-space: nowrap;
 }
 
@@ -1071,10 +1087,70 @@ textarea:focus-visible {
   line-height: 1;
 }
 
+.stock-cell {
+  text-align: left;
+  font-weight: 760;
+}
+
+.stock-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  flex: 0 0 auto;
+  margin-right: 8px;
+  place-items: center;
+  border: 1px solid #1c2430;
+  border-radius: 6px;
+  background: #050505;
+  color: #dbeaff;
+  font-size: 11px;
+  font-weight: 860;
+}
+
+.stock-alert-btn {
+  min-width: 42px;
+  height: 28px;
+  display: inline-grid;
+  grid-template-columns: 18px auto;
+  place-items: center;
+  gap: 4px;
+  border: 1px solid #1c2430;
+  border-radius: 6px;
+  background: #050505;
+  color: #dbeaff;
+}
+
+.stock-alert-btn svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stock-alert-btn small {
+  min-width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #111827;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 820;
+}
+
+.stock-alert-btn:hover {
+  border-color: #244f8d;
+  color: white;
+}
+
 .market-table th {
   color: #d1d6df;
   font-weight: 620;
-  background: #090b10;
+  background: #000;
 }
 
 .market-table tr:last-child td {
@@ -2473,6 +2549,10 @@ textarea {
 
   .top-bar {
     grid-template-columns: 72px 1fr 160px;
+  }
+
+  body[data-screen="stocks"] .top-bar {
+    grid-template-columns: 0 minmax(0, 1fr) 160px;
   }
 
   .top-bar h1 {

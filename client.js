@@ -149,7 +149,7 @@ const state = {
 
 const screenTitles = {
   home: "홈",
-  stocks: "종목",
+  stocks: "종목리스트",
   ai: "시장분석",
   alerts: "알림설정"
 };
@@ -405,6 +405,7 @@ function syncAutoUpdate() {
 
 function render() {
   const isAuthenticated = Boolean(state.user);
+  document.body.dataset.screen = isAuthenticated ? state.screen : "login";
   title.textContent = isAuthenticated ? screenTitles[state.screen] : "로그인";
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.classList.toggle("is-active", isAuthenticated && button.dataset.screen === state.screen);
@@ -538,10 +539,12 @@ function renderStocks() {
     </button>
   `).join("");
 
-  const rows = stocks.map((stock) => `
+  const rows = stocks.map((stock) => {
+    const alertCount = alerts.filter((alert) => alert.symbol === stock.symbol).length;
+    return `
     <tr>
       ${state.deleteMode ? `<td><button class="row-delete-btn" type="button" data-action="delete-stock" data-symbol="${stock.symbol}" aria-label="${stock.symbol} 삭제">−</button></td>` : ""}
-      <td>${stock.symbol}</td>
+      <td class="stock-cell"><span class="stock-icon" aria-hidden="true">${stock.symbol.slice(0, 1)}</span><span>${stock.symbol}</span></td>
       <td class="${flashClass(`${stock.symbol}:price`)}">${stock.price.toFixed(2)}</td>
       <td class="${cls(stock.change)}${flashClass(`${stock.symbol}:change`)}">${pct(stock.change)}</td>
       ${state.periods.map((period) => {
@@ -549,8 +552,18 @@ function renderStocks() {
         const tone = value <= 30 ? "negative" : value >= 50 ? "positive" : "warning";
         return `<td class="${tone}${flashClass(`${stock.symbol}:rsi:${period}`)}">${value}</td>`;
       }).join("")}
+      <td>
+        <button class="stock-alert-btn" type="button" data-action="open-symbol-alerts" data-symbol="${stock.symbol}" aria-label="${stock.symbol} 알림설정 보기">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9z"/>
+            <path d="M10 21h4"/>
+          </svg>
+          <small>${alertCount}</small>
+        </button>
+      </td>
     </tr>
-  `).join("");
+    `;
+  }).join("");
 
   return `
     <section class="panel">
@@ -577,6 +590,7 @@ function renderStocks() {
             <th>가격</th>
             <th>등락률</th>
             ${state.periods.map((period) => `<th>${period}</th>`).join("")}
+            <th>알람</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -911,7 +925,7 @@ function renderAi() {
 }
 
 function renderAlerts() {
-  const symbols = [...new Set(alerts.map((alert) => alert.symbol))];
+  const symbols = [...new Set([...stocks.map((stock) => stock.symbol), ...alerts.map((alert) => alert.symbol)])];
   if (state.selectedAlertSymbol !== "all" && !symbols.includes(state.selectedAlertSymbol)) {
     state.selectedAlertSymbol = "all";
   }
@@ -1014,6 +1028,18 @@ document.addEventListener("click", async (event) => {
 
   if (target.dataset.action === "toggle-stock-menu") {
     state.stockMenuOpen = !state.stockMenuOpen;
+    render();
+  }
+
+  if (target.dataset.action === "open-symbol-alerts") {
+    state.screen = "alerts";
+    state.selectedAlertSymbol = target.dataset.symbol;
+    state.selectedAlertIds = new Set();
+    state.selectedAlertId = "";
+    state.addAlertOpen = false;
+    state.addStockOpen = false;
+    state.telegramSettingsOpen = false;
+    state.stockMenuOpen = false;
     render();
   }
 
