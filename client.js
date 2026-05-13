@@ -131,8 +131,42 @@ function saveTelegramSettings() {
   localStorage.setItem(telegramSettingsKey(state.user?.id), JSON.stringify(telegramSettings));
 }
 
+function readAddAlertDraft() {
+  if (!state.addAlertOpen) return;
+
+  const nextDraft = {
+    ...state.addAlertDraft,
+    symbol: document.querySelector("#alertSymbol")?.value || state.addAlertDraft.symbol,
+    period: document.querySelector("#alertPeriod")?.value || state.addAlertDraft.period,
+    direction: document.querySelector("#alertCondition")?.value || state.addAlertDraft.direction,
+    threshold: Number(document.querySelector("#alertThreshold")?.value),
+    telegram: document.querySelector("#telegramChannel")?.checked || false,
+    message: document.querySelector("#newAlertText")?.value.trim() || ""
+  };
+
+  if (!Number.isFinite(nextDraft.threshold)) nextDraft.threshold = state.addAlertDraft.threshold;
+  state.addAlertDraft = nextDraft;
+}
+
 function cloneAlerts(items) {
   return JSON.parse(JSON.stringify(items));
+}
+
+function defaultAlertDraft() {
+  return {
+    symbol: stocks[0]?.symbol || "",
+    period: "1분봉",
+    direction: "low",
+    threshold: 30,
+    telegram: true,
+    message: "",
+    messageTouched: false
+  };
+}
+
+function alertDraftMessage(draft) {
+  const directionText = draft.direction === "high" ? "이상" : "이하";
+  return `${draft.symbol} ${draft.period} RSI ${draft.threshold} ${directionText} 조건에 도달했습니다.`;
 }
 
 let telegramSettings = loadTelegramSettings();
@@ -150,6 +184,7 @@ const state = {
   deleteMode: false,
   addStockOpen: false,
   addAlertOpen: false,
+  addAlertDraft: defaultAlertDraft(),
   telegramSettingsOpen: false,
   telegramPanelOpen: true,
   telegramSettingsStatus: "",
@@ -709,6 +744,8 @@ function renderOverlay() {
   }
 
   if (state.addAlertOpen) {
+    const draft = state.addAlertDraft;
+    const draftMessage = draft.message || alertDraftMessage(draft);
     return `
       <div class="modal-backdrop" role="presentation">
         <section class="modal" role="dialog" aria-modal="true" aria-labelledby="addAlertTitle">
@@ -719,26 +756,26 @@ function renderOverlay() {
           <div class="alert-modal-grid">
             <label class="label" for="alertSymbol">종목</label>
             <select id="alertSymbol">
-              ${stocks.map((stock) => `<option value="${stock.symbol}">${stock.symbol}</option>`).join("")}
+              ${stocks.map((stock) => `<option value="${stock.symbol}" ${stock.symbol === draft.symbol ? "selected" : ""}>${stock.symbol}</option>`).join("")}
             </select>
             <label class="label" for="alertPeriod">시간봉</label>
             <select id="alertPeriod">
-              ${["1분봉", "5분봉", "15분봉", "30분봉", "60분봉", "120분봉", "일봉"].map((period) => `<option>${period}</option>`).join("")}
+              ${["1분봉", "5분봉", "15분봉", "30분봉", "60분봉", "120분봉", "일봉"].map((period) => `<option ${period === draft.period ? "selected" : ""}>${period}</option>`).join("")}
             </select>
             <label class="label" for="alertCondition">조건</label>
             <select id="alertCondition">
-              <option value="low">RSI 이하</option>
-              <option value="high">RSI 이상</option>
+              <option value="low" ${draft.direction === "low" ? "selected" : ""}>RSI 이하</option>
+              <option value="high" ${draft.direction === "high" ? "selected" : ""}>RSI 이상</option>
             </select>
             <label class="label" for="alertThreshold">값</label>
-            <input id="alertThreshold" type="number" min="1" max="99" value="30" />
+            <input id="alertThreshold" type="number" min="1" max="99" value="${draft.threshold}" />
           </div>
           <label class="label" for="newAlertText" style="display:block;margin-top:13px">알림 문구</label>
-          <textarea id="newAlertText">RSI 조건에 도달했습니다.</textarea>
+          <textarea id="newAlertText">${escapeHtml(draftMessage)}</textarea>
           <div class="check-row">
             <label class="check is-disabled"><input id="appChannel" type="checkbox" disabled />앱 푸시 알림</label>
             <label class="check is-disabled"><input type="checkbox" disabled />카카오톡</label>
-            <label class="check"><input id="telegramChannel" type="checkbox" checked />텔레그램</label>
+            <label class="check"><input id="telegramChannel" type="checkbox" ${draft.telegram ? "checked" : ""} />텔레그램</label>
           </div>
           <div class="modal-actions">
             <button class="small-btn" type="button" data-action="close-add-alert">취소</button>
@@ -1038,6 +1075,34 @@ document.querySelector(".bottom-nav").addEventListener("click", (event) => {
   render();
 });
 
+document.addEventListener("input", (event) => {
+  if (!state.addAlertOpen) return;
+  const field = event.target.closest("#alertThreshold, #newAlertText");
+  if (!field) return;
+
+  readAddAlertDraft();
+  if (field.id === "newAlertText") {
+    state.addAlertDraft.messageTouched = true;
+  } else if (!state.addAlertDraft.messageTouched) {
+    state.addAlertDraft.message = alertDraftMessage(state.addAlertDraft);
+    const textarea = document.querySelector("#newAlertText");
+    if (textarea) textarea.value = state.addAlertDraft.message;
+  }
+});
+
+document.addEventListener("change", (event) => {
+  if (!state.addAlertOpen) return;
+  const field = event.target.closest("#alertSymbol, #alertPeriod, #alertCondition, #telegramChannel");
+  if (!field) return;
+
+  readAddAlertDraft();
+  if (!state.addAlertDraft.messageTouched && field.id !== "telegramChannel") {
+    state.addAlertDraft.message = alertDraftMessage(state.addAlertDraft);
+    const textarea = document.querySelector("#newAlertText");
+    if (textarea) textarea.value = state.addAlertDraft.message;
+  }
+});
+
 document.addEventListener("click", async (event) => {
   const detailRow = event.target.closest("[data-action='open-alert-detail']");
   if (detailRow && !event.target.closest("button")) {
@@ -1098,6 +1163,12 @@ document.addEventListener("click", async (event) => {
   }
 
   if (target.dataset.action === "add-alert") {
+    const symbol = state.selectedAlertSymbol !== "all" ? state.selectedAlertSymbol : stocks[0]?.symbol || "";
+    state.addAlertDraft = {
+      ...defaultAlertDraft(),
+      symbol
+    };
+    state.addAlertDraft.message = alertDraftMessage(state.addAlertDraft);
     state.addAlertOpen = true;
     state.addStockOpen = false;
     state.authModalOpen = false;
@@ -1239,11 +1310,9 @@ document.addEventListener("click", async (event) => {
   }
 
   if (target.dataset.action === "save-alert") {
-    const symbol = document.querySelector("#alertSymbol")?.value;
-    const period = document.querySelector("#alertPeriod")?.value;
-    const direction = document.querySelector("#alertCondition")?.value || "low";
-    const threshold = Number(document.querySelector("#alertThreshold")?.value);
-    const telegram = document.querySelector("#telegramChannel")?.checked || false;
+    readAddAlertDraft();
+    const { symbol, period, direction, threshold, telegram } = state.addAlertDraft;
+    const message = state.addAlertDraft.message || alertDraftMessage(state.addAlertDraft);
 
     if (!symbol || !period || !Number.isFinite(threshold)) return;
 
@@ -1256,11 +1325,12 @@ document.addEventListener("click", async (event) => {
       direction,
       enabled: true,
       channels: { app: false, kakao: false, telegram },
-      message: document.querySelector("#newAlertText")?.value.trim() || `${symbol} ${period} RSI가 ${threshold} ${direction === "high" ? "이상으로 올라갔습니다." : "이하로 내려왔습니다."}`
+      message
     });
     alertIdCounter += 1;
     state.selectedAlertSymbol = symbol;
     state.addAlertOpen = false;
+    state.addAlertDraft = defaultAlertDraft();
     markAlertSettingsDirty();
     render();
   }
