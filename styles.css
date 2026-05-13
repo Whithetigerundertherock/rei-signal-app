@@ -1853,6 +1853,28 @@ textarea {
   width: 100%;
 }
 
+.alert-list-actions {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.alert-delete-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 86px;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-delete-actions span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
 .alert-detail-head {
   display: grid;
   grid-template-columns: 28px 1fr auto;
@@ -1899,6 +1921,11 @@ textarea {
   cursor: pointer;
 }
 
+.alert-row.is-selected {
+  border-color: rgba(31, 124, 255, 0.72);
+  background: linear-gradient(180deg, #111a29, #0a0f18);
+}
+
 .alert-row:hover {
   border-color: var(--line);
   background: linear-gradient(180deg, #121722, #0a0d12);
@@ -1907,6 +1934,25 @@ textarea {
 .alert-row:focus-visible {
   outline: 2px solid rgba(31, 124, 255, 0.88);
   outline-offset: 2px;
+}
+
+.alert-select-btn {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #080a0e;
+  color: #dbeaff;
+  font-size: 15px;
+  font-weight: 860;
+  line-height: 1;
+}
+
+.alert-select-btn[aria-checked="true"] {
+  border-color: #244f8d;
+  background: linear-gradient(180deg, #123b72, #0b2448);
 }
 
 .apply-bar {
@@ -2571,6 +2617,14 @@ textarea {
   .alert-modal-grid,
   .repeat-row {
     grid-template-columns: 1fr;
+  }
+
+  .alert-list-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .alert-delete-actions span {
+    text-align: left;
   }
 
   .price-grid {

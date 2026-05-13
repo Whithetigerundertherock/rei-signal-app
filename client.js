@@ -50,11 +50,11 @@ const ALERT_STORAGE_KEY = "rsi-signal-alerts";
 const TELEGRAM_SETTINGS_KEY = "rsi-signal-telegram-settings";
 
 let alerts = [
-  { id: "alert-1", symbol: "TQQQ", period: "120분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: true, channels: { app: true, kakao: false, telegram: true }, message: "TQQQ 120분봉 RSI가 30 이하로 내려왔습니다." },
-  { id: "alert-2", symbol: "SOXL", period: "30분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: true, channels: { app: true, kakao: false, telegram: true }, message: "SOXL 30분봉 RSI가 30 이하로 내려왔습니다." },
-  { id: "alert-3", symbol: "NVDA", period: "15분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: false, channels: { app: true, kakao: false, telegram: true }, message: "NVDA 15분봉 RSI가 30 이하로 내려왔습니다." },
-  { id: "alert-4", symbol: "TSLA", period: "60분봉", condition: "RSI 70 이상", threshold: 70, direction: "high", enabled: true, channels: { app: true, kakao: false, telegram: true }, message: "TSLA 60분봉 RSI가 70 이상으로 올라갔습니다." },
-  { id: "alert-5", symbol: "QQQ", period: "30분봉", condition: "RSI 70 이상", threshold: 70, direction: "high", enabled: true, channels: { app: true, kakao: false, telegram: true }, message: "QQQ 30분봉 RSI가 70 이상으로 올라갔습니다." }
+  { id: "alert-1", symbol: "TQQQ", period: "120분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "TQQQ 120분봉 RSI가 30 이하로 내려왔습니다." },
+  { id: "alert-2", symbol: "SOXL", period: "30분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "SOXL 30분봉 RSI가 30 이하로 내려왔습니다." },
+  { id: "alert-3", symbol: "NVDA", period: "15분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: false, channels: { app: false, kakao: false, telegram: true }, message: "NVDA 15분봉 RSI가 30 이하로 내려왔습니다." },
+  { id: "alert-4", symbol: "TSLA", period: "60분봉", condition: "RSI 70 이상", threshold: 70, direction: "high", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "TSLA 60분봉 RSI가 70 이상으로 올라갔습니다." },
+  { id: "alert-5", symbol: "QQQ", period: "30분봉", condition: "RSI 70 이상", threshold: 70, direction: "high", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "QQQ 30분봉 RSI가 70 이상으로 올라갔습니다." }
 ];
 
 function loadSavedAlerts() {
@@ -73,7 +73,7 @@ function loadSavedAlerts() {
         direction: alert.direction,
         enabled: alert.enabled !== false,
         channels: {
-          app: alert.channels?.app !== false,
+          app: false,
           kakao: false,
           telegram: alert.channels?.telegram === true
         },
@@ -123,6 +123,7 @@ const state = {
   screen: "home",
   periods: ["1분", "5분", "60분", "120분"],
   selectedAlertSymbol: "all",
+  selectedAlertIds: new Set(),
   lastUpdated: formatTime(new Date()),
   timeSelectorOpen: true,
   stockMenuOpen: false,
@@ -423,7 +424,7 @@ function render() {
       </div>
     `,
     ai: `${actionIconButton("현황 업데이트", "⟳", "update-indicators", state.isUpdating)}`,
-    alerts: `<button class="text-link" type="button" data-action="add-alert">+ 새 알림 추가</button>`
+    alerts: ""
   }[isAuthenticated ? state.screen : "home"];
 
   content.innerHTML = !state.authChecked ? renderAuthLoading() : !isAuthenticated ? renderAuthGate() : {
@@ -666,7 +667,7 @@ function renderOverlay() {
             <strong>${detailAlert.threshold}</strong>
             <span class="label">알림 종류</span>
             <div class="check-row is-compact">
-              <label class="check"><input id="detailAppChannel" type="checkbox" ${detailAlert.channels?.app ? "checked" : ""} />앱 푸시 알림</label>
+              <label class="check is-disabled"><input id="detailAppChannel" type="checkbox" disabled />앱 푸시 알림</label>
               <label class="check is-disabled"><input type="checkbox" disabled />카카오톡</label>
               <label class="check"><input id="detailTelegramChannel" type="checkbox" ${detailAlert.channels?.telegram ? "checked" : ""} />텔레그램</label>
             </div>
@@ -710,7 +711,7 @@ function renderOverlay() {
           <label class="label" for="newAlertText" style="display:block;margin-top:13px">알림 문구</label>
           <textarea id="newAlertText">RSI 조건에 도달했습니다.</textarea>
           <div class="check-row">
-            <label class="check"><input type="checkbox" checked />앱 푸시 알림</label>
+            <label class="check is-disabled"><input id="appChannel" type="checkbox" disabled />앱 푸시 알림</label>
             <label class="check is-disabled"><input type="checkbox" disabled />카카오톡</label>
             <label class="check"><input id="telegramChannel" type="checkbox" checked />텔레그램</label>
           </div>
@@ -914,9 +915,11 @@ function renderAlerts() {
   if (state.selectedAlertSymbol !== "all" && !symbols.includes(state.selectedAlertSymbol)) {
     state.selectedAlertSymbol = "all";
   }
+  state.selectedAlertIds = new Set([...state.selectedAlertIds].filter((id) => alerts.some((alert) => alert.id === id)));
   const selectedAlerts = state.selectedAlertSymbol === "all"
     ? alerts
     : alerts.filter((alert) => alert.symbol === state.selectedAlertSymbol);
+  const selectedCount = state.selectedAlertIds.size;
 
   return `
     <section class="telegram-settings-card">
@@ -928,6 +931,13 @@ function renderAlerts() {
       <div class="telegram-settings-actions">
         <button class="small-btn" type="button" data-action="open-telegram-settings">설정</button>
         <button class="small-btn is-primary" type="button" data-action="test-telegram" ${hasTelegramSettings() && !state.telegramSettingsTesting ? "" : "disabled"}>${state.telegramSettingsTesting ? "전송 중" : "알람 테스트"}</button>
+      </div>
+    </section>
+    <section class="alert-list-actions">
+      <button class="small-btn is-primary" type="button" data-action="add-alert">알림추가</button>
+      <div class="alert-delete-actions">
+        <span>${selectedCount ? `${selectedCount}개 선택됨` : "삭제할 알림을 선택하세요"}</span>
+        <button class="small-btn" type="button" data-action="delete-selected-alerts" ${selectedCount ? "" : "disabled"}>선택 삭제</button>
       </div>
     </section>
     <div class="alert-symbol-tabs" aria-label="알림 종목">
@@ -946,8 +956,10 @@ function renderAlerts() {
       }).join("")}
     </div>
     ${selectedAlerts.map((alert) => `
-      <article class="alert-row" role="button" tabindex="0" data-action="open-alert-detail" data-alert-id="${alert.id}">
-        <button class="star-btn is-on" type="button" aria-label="관심종목">★</button>
+      <article class="alert-row ${state.selectedAlertIds.has(alert.id) ? "is-selected" : ""}" role="button" tabindex="0" data-action="open-alert-detail" data-alert-id="${alert.id}">
+        <button class="alert-select-btn" type="button" data-action="toggle-alert-selection" data-alert-id="${alert.id}" aria-label="${alert.symbol} 알림 선택" aria-checked="${state.selectedAlertIds.has(alert.id)}">
+          ${state.selectedAlertIds.has(alert.id) ? "✓" : ""}
+        </button>
         <strong class="ticker">${alert.symbol}</strong>
         <span class="subtle">${alert.period} / ${alert.condition}</span>
         <button class="switch ${alert.enabled ? "is-on" : ""}" type="button" data-action="alert-switch" data-alert-id="${alert.id}" data-symbol="${alert.symbol}" aria-label="사용 여부"></button>
@@ -1060,6 +1072,13 @@ document.addEventListener("click", async (event) => {
     render();
   }
 
+  if (target.dataset.action === "toggle-alert-selection") {
+    const id = target.dataset.alertId;
+    if (state.selectedAlertIds.has(id)) state.selectedAlertIds.delete(id);
+    else state.selectedAlertIds.add(id);
+    render();
+  }
+
   if (target.dataset.action === "test-telegram") {
     if (state.telegramSettingsOpen) {
       telegramSettings = {
@@ -1169,7 +1188,7 @@ document.addEventListener("click", async (event) => {
       threshold,
       direction,
       enabled: true,
-      channels: { app: true, kakao: false, telegram },
+      channels: { app: false, kakao: false, telegram },
       message: document.querySelector("#newAlertText")?.value.trim() || `${symbol} ${period} RSI가 ${threshold} ${direction === "high" ? "이상으로 올라갔습니다." : "이하로 내려왔습니다."}`
     });
     alertIdCounter += 1;
@@ -1184,11 +1203,21 @@ document.addEventListener("click", async (event) => {
     if (!alert) return;
 
     alert.channels = {
-      app: document.querySelector("#detailAppChannel")?.checked || false,
+      app: false,
       kakao: false,
       telegram: document.querySelector("#detailTelegramChannel")?.checked || false
     };
     alert.message = document.querySelector("#detailAlertText")?.value.trim() || alert.message;
+    state.selectedAlertId = "";
+    markAlertSettingsDirty();
+    render();
+  }
+
+  if (target.dataset.action === "delete-selected-alerts") {
+    if (!state.selectedAlertIds.size) return;
+
+    alerts = alerts.filter((alert) => !state.selectedAlertIds.has(alert.id));
+    state.selectedAlertIds = new Set();
     state.selectedAlertId = "";
     markAlertSettingsDirty();
     render();
