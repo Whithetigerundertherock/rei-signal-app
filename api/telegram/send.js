@@ -20,16 +20,15 @@ module.exports = async function handler(request, response) {
     return;
   }
 
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-
-  if (!token || !chatId) {
-    response.status(400).json({ error: "TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are required" });
-    return;
-  }
-
   const body = await readBody(request);
   const text = String(body.text || "").trim();
+  const token = String(body.telegram?.botToken || body.botToken || process.env.TELEGRAM_BOT_TOKEN || "").trim();
+  const chatId = String(body.telegram?.chatId || body.chatId || process.env.TELEGRAM_CHAT_ID || "").trim();
+
+  if (!token || !chatId) {
+    response.status(400).json({ error: "Telegram bot token and chat id are required" });
+    return;
+  }
 
   if (!text) {
     response.status(400).json({ error: "text is required" });

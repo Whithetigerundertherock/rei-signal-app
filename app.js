@@ -1,4 +1,5 @@
 const stocks = [
+  { symbol: "QLD", price: 71.85, change: 0.9, favorite: true, rsi: { "1분": 44, "5분": 39, "30분": 34, "60분": 38, "120분": 41 } },
   { symbol: "TQQQ", price: 58.2, change: 2.15, favorite: true, rsi: { "1분": 42, "5분": 35, "30분": 29, "120분": 45 } },
   { symbol: "SOXL", price: 32.45, change: 3.45, favorite: true, rsi: { "1분": 40, "5분": 33, "30분": 27, "120분": 42 } },
   { symbol: "NVDA", price: 915.3, change: -1.02, favorite: true, rsi: { "1분": 55, "5분": 49, "30분": 41, "120분": 48 } },
@@ -170,6 +171,10 @@ function iconButton(label, text) {
   return `<button class="icon-btn" type="button" aria-label="${label}" title="${label}">${text}</button>`;
 }
 
+function actionIconButton(label, text, action, disabled = false) {
+  return `<button class="icon-btn" type="button" data-action="${action}" aria-label="${label}" title="${label}" ${disabled ? "disabled" : ""}>${text}</button>`;
+}
+
 function accountButton() {
   const initial = state.user?.id?.charAt(0).toUpperCase() || "";
 
@@ -331,7 +336,7 @@ function render() {
         ` : ""}
       </div>
     `,
-    ai: `${iconButton("정보", "ⓘ")}`,
+    ai: `${actionIconButton("현황 업데이트", "⟳", "update-indicators", state.isUpdating)}`,
     alerts: `<button class="text-link" type="button" data-action="add-alert">+ 새 알림 추가</button>`
   }[isAuthenticated ? state.screen : "home"];
 
@@ -699,12 +704,99 @@ async function updateRealIndicators(options = {}) {
   }
 }
 
-function renderAi() {
+function strategyIcon(name) {
+  const icons = {
+    clock: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>`,
+    trend: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16l5-5 4 4 5-7"/><path d="M15 8h4v4"/></svg>`,
+    alert: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v6"/><path d="M12 17h.01"/></svg>`,
+    check: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>`
+  };
+  return icons[name] || "";
+}
+
+function strategyCondition(label, detail, tone, status, icon) {
   return `
-    <div class="empty-screen">
-      <strong>시장분석</strong>
-      <span>콘텐츠 준비 중</span>
+    <div class="strategy-condition">
+      <span class="strategy-condition-icon ${tone}" aria-hidden="true">${strategyIcon(icon)}</span>
+      <span>
+        <strong>${label}</strong>
+        <small>${detail}</small>
+      </span>
+      <em class="${tone}">${status}</em>
     </div>
+  `;
+}
+
+function renderAi() {
+  const qld = stocks.find((stock) => stock.symbol === "QLD") || stocks.find((stock) => stock.symbol === "QQQ") || stocks[0];
+  const currentPrice = qld?.price || 71.85;
+  const currentChange = qld?.change ?? 0.9;
+  const rsi7 = Math.min(99, Math.max(1, Math.round((qld?.rsi["60분"] ?? qld?.rsi["120분"] ?? 27) * 0.72)));
+  const ma200 = Number((currentPrice / 1.085).toFixed(2));
+  const aboveMa = currentPrice > ma200;
+  const afterOpen = true;
+  const eventClear = false;
+  const metCount = [aboveMa, afterOpen, eventClear].filter(Boolean).length;
+
+  return `
+    <section class="strategy-hero">
+      <div>
+        <span>1시간봉 · RSI 7 · 200일선 필터</span>
+        <h2>QLD RSI 전략</h2>
+      </div>
+      <button class="update-btn strategy-refresh ${state.isUpdating ? "is-loading" : ""}" type="button" data-action="update-indicators" aria-label="현황 업데이트" ${state.isUpdating ? "disabled" : ""}>⟳</button>
+    </section>
+
+    <section class="strategy-card">
+      <div class="strategy-card-head">
+        <strong>현재 상태</strong>
+        <span>${state.lastUpdated}</span>
+      </div>
+      <div class="strategy-status">
+        <span class="strategy-status-icon" aria-hidden="true">${strategyIcon("clock")}</span>
+        <div>
+          <strong>대기 중</strong>
+          <span>진입 조건을 확인 중입니다</span>
+        </div>
+      </div>
+      <div class="strategy-metrics">
+        <div>
+          <span>RSI (7)</span>
+          <strong>${rsi7.toFixed(1)}</strong>
+          <em class="warning">과매도 구간</em>
+        </div>
+        <div>
+          <span>현재가</span>
+          <strong>${currentPrice.toFixed(2)}</strong>
+          <em class="${cls(currentChange)}">${currentChange > 0 ? "+" : ""}${currentChange.toFixed(2)}%</em>
+        </div>
+        <div>
+          <span>200일선</span>
+          <strong>${ma200.toFixed(2)}</strong>
+          <em class="positive">위치: +8.5%</em>
+        </div>
+      </div>
+    </section>
+
+    <section class="strategy-card">
+      <div class="strategy-title-row">
+        <span class="strategy-title-icon" aria-hidden="true">${strategyIcon("check")}</span>
+        <strong>필수 진입 조건</strong>
+      </div>
+      <div class="strategy-condition-list">
+        ${strategyCondition("200일선 위", "200일선 위에서만 매수 가능", aboveMa ? "positive" : "warning", aboveMa ? "충족" : "확인", "trend")}
+        ${strategyCondition("미국장 시작 30분 이후", "초반 변동성 구간 회피", afterOpen ? "positive" : "warning", afterOpen ? "충족" : "대기", "clock")}
+        ${strategyCondition("CPI/FOMC 당일 아님", "이벤트 리스크 회피", eventClear ? "positive" : "warning", eventClear ? "충족" : "확인 필요", "alert")}
+      </div>
+      <div class="strategy-summary">
+        <strong>필수 조건 <span>${metCount}/3</span> 충족</strong>
+        <small>${metCount === 3 ? "진입 가능 구간입니다" : "이벤트 일정 확인 후 진입 가능"}</small>
+      </div>
+    </section>
+
+    <button class="strategy-update-button" type="button" data-action="update-indicators" ${state.isUpdating ? "disabled" : ""}>
+      <span aria-hidden="true">⟳</span> 현황 업데이트
+    </button>
   `;
 }
 
