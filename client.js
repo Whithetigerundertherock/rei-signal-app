@@ -934,22 +934,43 @@ function renderAlerts() {
     ? alerts
     : alerts.filter((alert) => alert.symbol === state.selectedAlertSymbol);
   const selectedCount = state.selectedAlertIds.size;
+  const isTelegramLinked = hasTelegramSettings();
+  const telegramStatus = state.telegramSettingsStatus || (isTelegramLinked ? "테스트 메시지가 성공적으로 전송되었습니다." : "Bot token과 chat id를 입력해 주세요.");
 
   return `
     <section class="telegram-settings-card">
-      <div>
-        <strong>텔레그램 알림</strong>
+      <span class="telegram-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="m21.5 4.5-3.1 15.1c-.2.9-.8 1.1-1.6.7l-4.9-3.6-2.3 2.2c-.3.3-.5.5-1 .5l.3-5 9.2-8.3c.4-.4-.1-.6-.6-.2L6.2 13 1.4 11.5c-1-.3-1-1 .2-1.5l18.8-7.2c.9-.3 1.6.2 1.1 1.7z"/>
+        </svg>
+      </span>
+      <div class="telegram-settings-copy">
+        <div class="telegram-title-row">
+          <strong>텔레그램 알림</strong>
+          <span class="telegram-link-badge ${isTelegramLinked ? "is-linked" : ""}">${isTelegramLinked ? "연결됨" : "미연결"}</span>
+        </div>
         <span>${escapeHtml(telegramSettingsSummary())}</span>
-        ${state.telegramSettingsStatus ? `<em>${escapeHtml(state.telegramSettingsStatus)}</em>` : ""}
+        <em>${escapeHtml(telegramStatus)}</em>
       </div>
       <div class="telegram-settings-actions">
-        <button class="small-btn" type="button" data-action="open-telegram-settings">설정</button>
-        <button class="small-btn is-primary" type="button" data-action="test-telegram" ${hasTelegramSettings() && !state.telegramSettingsTesting ? "" : "disabled"}>${state.telegramSettingsTesting ? "전송 중" : "알람 테스트"}</button>
+        <button class="small-btn telegram-action-secondary" type="button" data-action="open-telegram-settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z"/>
+            <path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1a2.1 2.1 0 0 1-3 3l-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.7V21a2.1 2.1 0 0 1-4.2 0v-.1a1.8 1.8 0 0 0-1.2-1.7 1.8 1.8 0 0 0-2 .4l-.1.1a2.1 2.1 0 0 1-3-3l.1-.1a1.8 1.8 0 0 0 .4-2 1.8 1.8 0 0 0-1.7-1.1H2a2.1 2.1 0 0 1 0-4.2h.1a1.8 1.8 0 0 0 1.7-1.2 1.8 1.8 0 0 0-.4-2l-.1-.1a2.1 2.1 0 0 1 3-3l.1.1a1.8 1.8 0 0 0 2 .4h.1A1.8 1.8 0 0 0 9.5 2V2a2.1 2.1 0 0 1 4.2 0v.1a1.8 1.8 0 0 0 1.1 1.7 1.8 1.8 0 0 0 2-.4l.1-.1a2.1 2.1 0 0 1 3 3l-.1.1a1.8 1.8 0 0 0-.4 2v.1A1.8 1.8 0 0 0 21 9.5h.1a2.1 2.1 0 0 1 0 4.2H21a1.8 1.8 0 0 0-1.6 1.3z"/>
+          </svg>
+          설정
+        </button>
+        <button class="small-btn is-primary telegram-action-primary" type="button" data-action="test-telegram" ${isTelegramLinked && !state.telegramSettingsTesting ? "" : "disabled"}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m21.5 4.5-3.1 15.1c-.2.9-.8 1.1-1.6.7l-4.9-3.6-2.3 2.2c-.3.3-.5.5-1 .5l.3-5 9.2-8.3c.4-.4-.1-.6-.6-.2L6.2 13 1.4 11.5c-1-.3-1-1 .2-1.5l18.8-7.2c.9-.3 1.6.2 1.1 1.7z"/>
+          </svg>
+          ${state.telegramSettingsTesting ? "전송 중" : "알림 테스트"}
+        </button>
       </div>
     </section>
     <section class="alert-list-actions">
-      <button class="small-btn is-primary" type="button" data-action="add-alert">알림추가</button>
-      <div class="alert-delete-actions">
+      <button class="add-alert-button" type="button" data-action="add-alert"><span aria-hidden="true">+</span> 알림 추가</button>
+      <div class="alert-delete-actions ${selectedCount ? "is-visible" : ""}">
         <span>${selectedCount ? `${selectedCount}개 선택됨` : "삭제할 알림을 선택하세요"}</span>
         <button class="small-btn" type="button" data-action="delete-selected-alerts" ${selectedCount ? "" : "disabled"}>선택 삭제</button>
       </div>
