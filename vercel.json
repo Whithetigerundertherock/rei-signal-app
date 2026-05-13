@@ -1,41 +1,9 @@
 {
-  "version": 2,
   "cleanUrls": true,
   "trailingSlash": false,
-  "builds": [
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "**/*",
-      "use": "@vercel/static"
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 10
     }
-  ],
-  "routes": [
-    {
-      "src": "/api/indicators",
-      "dest": "/api/indicators.js"
-    },
-    {
-      "src": "/api/session",
-      "dest": "/api/session.js"
-    },
-    {
-      "src": "/api/login",
-      "dest": "/api/login.js"
-    },
-    {
-      "src": "/api/logout",
-      "dest": "/api/logout.js"
-    },
-    {
-      "src": "/api/telegram/send",
-      "dest": "/api/telegram/send.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
-  ]
+  }
 }
