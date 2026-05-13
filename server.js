@@ -31,13 +31,14 @@ const intradayPeriods = {
 };
 
 function formatTime(date = new Date()) {
-  return new Intl.DateTimeFormat("ko-KR", {
+  const time = new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul",
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     hour12: false
   }).format(date);
+  return `${time} KST`;
 }
 
 function json(response, status, body) {

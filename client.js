@@ -123,7 +123,7 @@ const state = {
   screen: "home",
   periods: ["1분", "5분", "60분", "120분"],
   selectedAlertSymbol: "all",
-  lastUpdated: "12:50:15",
+  lastUpdated: formatTime(new Date()),
   timeSelectorOpen: true,
   stockMenuOpen: false,
   deleteMode: false,
@@ -175,13 +175,14 @@ function formatDateTime(date) {
 }
 
 function formatTime(date) {
-  return new Intl.DateTimeFormat("ko-KR", {
+  const time = new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul",
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     hour12: false
   }).format(date);
+  return `${time} KST`;
 }
 
 function cls(value) {
