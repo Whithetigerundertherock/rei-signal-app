@@ -544,7 +544,7 @@ function renderStocks() {
     return `
     <tr>
       ${state.deleteMode ? `<td><button class="row-delete-btn" type="button" data-action="delete-stock" data-symbol="${stock.symbol}" aria-label="${stock.symbol} 삭제">−</button></td>` : ""}
-      <td class="stock-cell"><span class="stock-icon" aria-hidden="true">${stock.symbol.slice(0, 1)}</span><span>${stock.symbol}</span></td>
+      <td class="stock-cell"><span class="stock-icon" aria-hidden="true">${stock.symbol}</span><span>${stock.symbol}</span></td>
       <td class="${flashClass(`${stock.symbol}:price`)}">${stock.price.toFixed(2)}</td>
       <td class="${cls(stock.change)}${flashClass(`${stock.symbol}:change`)}">${pct(stock.change)}</td>
       ${state.periods.map((period) => {
@@ -552,7 +552,7 @@ function renderStocks() {
         const tone = value <= 30 ? "negative" : value >= 50 ? "positive" : "warning";
         return `<td class="${tone}${flashClass(`${stock.symbol}:rsi:${period}`)}">${value}</td>`;
       }).join("")}
-      <td>
+      <td class="alert-cell">
         <button class="stock-alert-btn" type="button" data-action="open-symbol-alerts" data-symbol="${stock.symbol}" aria-label="${stock.symbol} 알림설정 보기">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9z"/>
@@ -590,7 +590,7 @@ function renderStocks() {
             <th>가격</th>
             <th>등락률</th>
             ${state.periods.map((period) => `<th>${period}</th>`).join("")}
-            <th>알람</th>
+            <th class="alert-col">알림</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>

@@ -395,7 +395,7 @@ textarea:focus-visible {
 }
 
 body[data-screen="stocks"] .top-bar {
-  grid-template-columns: 0 minmax(0, 1fr) 96px;
+  grid-template-columns: minmax(0, 1fr) 96px;
 }
 
 body[data-screen="stocks"] .top-bar > .icon-btn.is-hidden {
@@ -403,8 +403,14 @@ body[data-screen="stocks"] .top-bar > .icon-btn.is-hidden {
 }
 
 body[data-screen="stocks"] .top-bar h1 {
+  grid-column: 1;
   padding-left: 16px;
   text-align: left;
+  white-space: nowrap;
+}
+
+body[data-screen="stocks"] .top-actions {
+  grid-column: 2;
 }
 
 .top-actions {
@@ -1093,7 +1099,7 @@ body[data-screen="stocks"] .top-bar h1 {
 }
 
 .stock-icon {
-  width: 24px;
+  width: 34px;
   height: 24px;
   display: inline-grid;
   flex: 0 0 auto;
@@ -1103,17 +1109,26 @@ body[data-screen="stocks"] .top-bar h1 {
   border-radius: 6px;
   background: #050505;
   color: #dbeaff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 860;
 }
 
+.alert-col,
+.alert-cell {
+  width: 52px;
+  min-width: 52px;
+  max-width: 52px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
 .stock-alert-btn {
-  min-width: 42px;
-  height: 28px;
+  width: 38px;
+  height: 26px;
   display: inline-grid;
-  grid-template-columns: 18px auto;
+  grid-template-columns: 16px auto;
   place-items: center;
-  gap: 4px;
+  gap: 2px;
   border: 1px solid #1c2430;
   border-radius: 6px;
   background: #050505;
@@ -1121,8 +1136,8 @@ body[data-screen="stocks"] .top-bar h1 {
 }
 
 .stock-alert-btn svg {
-  width: 17px;
-  height: 17px;
+  width: 15px;
+  height: 15px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -1131,14 +1146,14 @@ body[data-screen="stocks"] .top-bar h1 {
 }
 
 .stock-alert-btn small {
-  min-width: 16px;
-  height: 16px;
+  min-width: 14px;
+  height: 14px;
   display: grid;
   place-items: center;
   border-radius: 999px;
   background: #111827;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 820;
 }
 
@@ -2552,7 +2567,7 @@ textarea {
   }
 
   body[data-screen="stocks"] .top-bar {
-    grid-template-columns: 0 minmax(0, 1fr) 160px;
+    grid-template-columns: minmax(0, 1fr) 160px;
   }
 
   .top-bar h1 {
