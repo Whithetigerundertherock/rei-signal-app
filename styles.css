@@ -1098,37 +1098,20 @@ body[data-screen="stocks"] .top-actions {
   font-weight: 760;
 }
 
-.stock-icon {
-  width: 34px;
-  height: 24px;
-  display: inline-grid;
-  flex: 0 0 auto;
-  margin-right: 8px;
-  place-items: center;
-  border: 1px solid #1c2430;
-  border-radius: 6px;
-  background: #050505;
-  color: #dbeaff;
-  font-size: 10px;
-  font-weight: 860;
-}
-
 .alert-col,
 .alert-cell {
-  width: 52px;
-  min-width: 52px;
-  max-width: 52px;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
   padding-left: 5px;
   padding-right: 5px;
 }
 
 .stock-alert-btn {
-  width: 38px;
+  width: 30px;
   height: 26px;
   display: inline-grid;
-  grid-template-columns: 16px auto;
   place-items: center;
-  gap: 2px;
   border: 1px solid #1c2430;
   border-radius: 6px;
   background: #050505;
@@ -1143,18 +1126,6 @@ body[data-screen="stocks"] .top-actions {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.stock-alert-btn small {
-  min-width: 14px;
-  height: 14px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: #111827;
-  color: var(--muted);
-  font-size: 9px;
-  font-weight: 820;
 }
 
 .stock-alert-btn:hover {

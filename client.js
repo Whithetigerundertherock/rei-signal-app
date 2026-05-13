@@ -403,20 +403,12 @@ function syncAutoUpdate() {
     return;
   }
 
-  if (state.screen === "home" || state.screen === "stocks") {
-    if (!autoUpdateTimer) {
-      autoUpdateTimer = setInterval(() => {
-        if ((state.screen === "home" || state.screen === "stocks") && !state.isUpdating) {
-          updateRealIndicators({ silent: true });
-        }
-      }, AUTO_UPDATE_MS);
-    }
-    return;
-  }
-
-  if (autoUpdateTimer) {
-    clearInterval(autoUpdateTimer);
-    autoUpdateTimer = null;
+  if (!autoUpdateTimer) {
+    autoUpdateTimer = setInterval(() => {
+      if (state.user && !state.isUpdating) {
+        updateRealIndicators({ silent: true });
+      }
+    }, AUTO_UPDATE_MS);
   }
 }
 
@@ -452,7 +444,7 @@ function render() {
     alerts: renderAlerts
   }[state.screen]() + renderOverlay();
 
-  if (isAuthenticated && (state.screen === "home" || state.screen === "stocks") && !state.marketLoaded && !state.isUpdating) {
+  if (isAuthenticated && !state.marketLoaded && !state.isUpdating) {
     setTimeout(() => updateRealIndicators({ silent: state.screen === "home" }), 0);
   }
 
@@ -557,11 +549,10 @@ function renderStocks() {
   `).join("");
 
   const rows = stocks.map((stock) => {
-    const alertCount = alerts.filter((alert) => alert.symbol === stock.symbol).length;
     return `
     <tr>
       ${state.deleteMode ? `<td><button class="row-delete-btn" type="button" data-action="delete-stock" data-symbol="${stock.symbol}" aria-label="${stock.symbol} 삭제">−</button></td>` : ""}
-      <td class="stock-cell"><span class="stock-icon" aria-hidden="true">${stock.symbol}</span><span>${stock.symbol}</span></td>
+      <td class="stock-cell">${stock.symbol}</td>
       <td class="${flashClass(`${stock.symbol}:price`)}">${stock.price.toFixed(2)}</td>
       <td class="${cls(stock.change)}${flashClass(`${stock.symbol}:change`)}">${pct(stock.change)}</td>
       ${state.periods.map((period) => {
@@ -575,7 +566,6 @@ function renderStocks() {
             <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9z"/>
             <path d="M10 21h4"/>
           </svg>
-          <small>${alertCount}</small>
         </button>
       </td>
     </tr>
