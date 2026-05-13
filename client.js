@@ -91,24 +91,40 @@ function saveAlerts() {
 
 loadSavedAlerts();
 
-function loadTelegramSettings() {
-  try {
-    const raw = localStorage.getItem(TELEGRAM_SETTINGS_KEY);
-    if (!raw) return { botToken: "", chatId: "" };
+function telegramSettingsKey(userId) {
+  const id = String(userId || "").trim();
+  return id ? `${TELEGRAM_SETTINGS_KEY}:${id}` : TELEGRAM_SETTINGS_KEY;
+}
 
-    const saved = JSON.parse(raw);
-    return {
-      botToken: String(saved.botToken || "").trim(),
-      chatId: String(saved.chatId || "").trim()
-    };
+function emptyTelegramSettings() {
+  return { botToken: "", chatId: "" };
+}
+
+function parseTelegramSettings(raw) {
+  if (!raw) return null;
+  const saved = JSON.parse(raw);
+  return {
+    botToken: String(saved.botToken || "").trim(),
+    chatId: String(saved.chatId || "").trim()
+  };
+}
+
+function loadTelegramSettings(userId) {
+  try {
+    const raw = localStorage.getItem(telegramSettingsKey(userId)) || localStorage.getItem(TELEGRAM_SETTINGS_KEY);
+    return parseTelegramSettings(raw) || emptyTelegramSettings();
   } catch {
-    localStorage.removeItem(TELEGRAM_SETTINGS_KEY);
-    return { botToken: "", chatId: "" };
+    localStorage.removeItem(telegramSettingsKey(userId));
+    return emptyTelegramSettings();
   }
 }
 
+function syncTelegramSettingsForUser(user) {
+  telegramSettings = loadTelegramSettings(user?.id);
+}
+
 function saveTelegramSettings() {
-  localStorage.setItem(TELEGRAM_SETTINGS_KEY, JSON.stringify(telegramSettings));
+  localStorage.setItem(telegramSettingsKey(state.user?.id), JSON.stringify(telegramSettings));
 }
 
 function cloneAlerts(items) {
@@ -131,6 +147,7 @@ const state = {
   addStockOpen: false,
   addAlertOpen: false,
   telegramSettingsOpen: false,
+  telegramPanelOpen: true,
   telegramSettingsStatus: "",
   telegramSettingsTesting: false,
   authModalOpen: false,
@@ -938,35 +955,42 @@ function renderAlerts() {
   const telegramStatus = state.telegramSettingsStatus || (isTelegramLinked ? "테스트 메시지가 성공적으로 전송되었습니다." : "Bot token과 chat id를 입력해 주세요.");
 
   return `
-    <section class="telegram-settings-card">
-      <span class="telegram-logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <path d="m21.5 4.5-3.1 15.1c-.2.9-.8 1.1-1.6.7l-4.9-3.6-2.3 2.2c-.3.3-.5.5-1 .5l.3-5 9.2-8.3c.4-.4-.1-.6-.6-.2L6.2 13 1.4 11.5c-1-.3-1-1 .2-1.5l18.8-7.2c.9-.3 1.6.2 1.1 1.7z"/>
-        </svg>
-      </span>
-      <div class="telegram-settings-copy">
+    <section class="telegram-settings-card ${state.telegramPanelOpen ? "" : "is-collapsed"}">
+      <button class="telegram-panel-toggle" type="button" data-action="toggle-telegram-panel" aria-expanded="${state.telegramPanelOpen}">
         <div class="telegram-title-row">
           <strong>텔레그램 알림</strong>
           <span class="telegram-link-badge ${isTelegramLinked ? "is-linked" : ""}">${isTelegramLinked ? "연결됨" : "미연결"}</span>
         </div>
-        <span>${escapeHtml(telegramSettingsSummary())}</span>
-        <em>${escapeHtml(telegramStatus)}</em>
-      </div>
-      <div class="telegram-settings-actions">
-        <button class="small-btn telegram-action-secondary" type="button" data-action="open-telegram-settings">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z"/>
-            <path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1a2.1 2.1 0 0 1-3 3l-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.7V21a2.1 2.1 0 0 1-4.2 0v-.1a1.8 1.8 0 0 0-1.2-1.7 1.8 1.8 0 0 0-2 .4l-.1.1a2.1 2.1 0 0 1-3-3l.1-.1a1.8 1.8 0 0 0 .4-2 1.8 1.8 0 0 0-1.7-1.1H2a2.1 2.1 0 0 1 0-4.2h.1a1.8 1.8 0 0 0 1.7-1.2 1.8 1.8 0 0 0-.4-2l-.1-.1a2.1 2.1 0 0 1 3-3l.1.1a1.8 1.8 0 0 0 2 .4h.1A1.8 1.8 0 0 0 9.5 2V2a2.1 2.1 0 0 1 4.2 0v.1a1.8 1.8 0 0 0 1.1 1.7 1.8 1.8 0 0 0 2-.4l.1-.1a2.1 2.1 0 0 1 3 3l-.1.1a1.8 1.8 0 0 0-.4 2v.1A1.8 1.8 0 0 0 21 9.5h.1a2.1 2.1 0 0 1 0 4.2H21a1.8 1.8 0 0 0-1.6 1.3z"/>
-          </svg>
-          설정
-        </button>
-        <button class="small-btn is-primary telegram-action-primary" type="button" data-action="test-telegram" ${isTelegramLinked && !state.telegramSettingsTesting ? "" : "disabled"}>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m21.5 4.5-3.1 15.1c-.2.9-.8 1.1-1.6.7l-4.9-3.6-2.3 2.2c-.3.3-.5.5-1 .5l.3-5 9.2-8.3c.4-.4-.1-.6-.6-.2L6.2 13 1.4 11.5c-1-.3-1-1 .2-1.5l18.8-7.2c.9-.3 1.6.2 1.1 1.7z"/>
-          </svg>
-          ${state.telegramSettingsTesting ? "전송 중" : "알림 테스트"}
-        </button>
-      </div>
+        <span class="telegram-panel-chevron" aria-hidden="true">${state.telegramPanelOpen ? "⌃" : "⌄"}</span>
+      </button>
+      ${state.telegramPanelOpen ? `
+        <div class="telegram-settings-body">
+          <span class="telegram-logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="m21.5 4.5-3.1 15.1c-.2.9-.8 1.1-1.6.7l-4.9-3.6-2.3 2.2c-.3.3-.5.5-1 .5l.3-5 9.2-8.3c.4-.4-.1-.6-.6-.2L6.2 13 1.4 11.5c-1-.3-1-1 .2-1.5l18.8-7.2c.9-.3 1.6.2 1.1 1.7z"/>
+            </svg>
+          </span>
+          <div class="telegram-settings-copy">
+            <span>${escapeHtml(telegramSettingsSummary())}</span>
+            <em>${escapeHtml(telegramStatus)}</em>
+          </div>
+          <div class="telegram-settings-actions">
+            <button class="small-btn telegram-action-secondary" type="button" data-action="open-telegram-settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z"/>
+                <path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1a2.1 2.1 0 0 1-3 3l-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.7V21a2.1 2.1 0 0 1-4.2 0v-.1a1.8 1.8 0 0 0-1.2-1.7 1.8 1.8 0 0 0-2 .4l-.1.1a2.1 2.1 0 0 1-3-3l.1-.1a1.8 1.8 0 0 0 .4-2 1.8 1.8 0 0 0-1.7-1.1H2a2.1 2.1 0 0 1 0-4.2h.1a1.8 1.8 0 0 0 1.7-1.2 1.8 1.8 0 0 0-.4-2l-.1-.1a2.1 2.1 0 0 1 3-3l.1.1a1.8 1.8 0 0 0 2 .4h.1A1.8 1.8 0 0 0 9.5 2V2a2.1 2.1 0 0 1 4.2 0v.1a1.8 1.8 0 0 0 1.1 1.7 1.8 1.8 0 0 0 2-.4l.1-.1a2.1 2.1 0 0 1 3 3l-.1.1a1.8 1.8 0 0 0-.4 2v.1A1.8 1.8 0 0 0 21 9.5h.1a2.1 2.1 0 0 1 0 4.2H21a1.8 1.8 0 0 0-1.6 1.3z"/>
+              </svg>
+              설정
+            </button>
+            <button class="small-btn is-primary telegram-action-primary" type="button" data-action="test-telegram" ${isTelegramLinked && !state.telegramSettingsTesting ? "" : "disabled"}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m21.5 4.5-3.1 15.1c-.2.9-.8 1.1-1.6.7l-4.9-3.6-2.3 2.2c-.3.3-.5.5-1 .5l.3-5 9.2-8.3c.4-.4-.1-.6-.6-.2L6.2 13 1.4 11.5c-1-.3-1-1 .2-1.5l18.8-7.2c.9-.3 1.6.2 1.1 1.7z"/>
+              </svg>
+              ${state.telegramSettingsTesting ? "전송 중" : "알림 테스트"}
+            </button>
+          </div>
+        </div>
+      ` : ""}
     </section>
     <section class="alert-list-actions">
       <button class="add-alert-button" type="button" data-action="add-alert"><span aria-hidden="true">+</span> 알림 추가</button>
@@ -1198,6 +1222,7 @@ document.addEventListener("click", async (event) => {
       }
 
       state.user = payload.user || { id };
+      syncTelegramSettingsForUser(state.user);
       state.authModalOpen = false;
       state.authError = "";
       state.marketLoaded = false;
@@ -1211,6 +1236,7 @@ document.addEventListener("click", async (event) => {
   if (target.dataset.action === "logout") {
     await fetch("/api/logout", { method: "POST" }).catch(() => {});
     state.user = null;
+    telegramSettings = emptyTelegramSettings();
     state.authModalOpen = false;
     state.authError = "";
     state.marketLoaded = false;
@@ -1324,6 +1350,11 @@ document.addEventListener("click", async (event) => {
     render();
   }
 
+  if (target.dataset.action === "toggle-telegram-panel") {
+    state.telegramPanelOpen = !state.telegramPanelOpen;
+    render();
+  }
+
   if (target.dataset.action === "toggle-period") {
     const period = target.dataset.period;
     if (state.periods.includes(period)) {
@@ -1373,8 +1404,10 @@ async function checkSession() {
     const response = await fetch("/api/session");
     const payload = await response.json();
     state.user = payload.authenticated ? payload.user : null;
+    syncTelegramSettingsForUser(state.user);
   } catch {
     state.user = null;
+    telegramSettings = emptyTelegramSettings();
   } finally {
     state.authChecked = true;
     state.authModalOpen = !state.user;
