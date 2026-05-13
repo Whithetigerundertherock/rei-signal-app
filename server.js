@@ -270,16 +270,15 @@ async function handleTelegramSend(request, response) {
     return;
   }
 
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-
-  if (!token || !chatId) {
-    json(response, 400, { error: "TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are required" });
-    return;
-  }
-
   const body = await readJson(request);
   const text = String(body.text || "").trim();
+  const token = String(body.telegram?.botToken || body.botToken || process.env.TELEGRAM_BOT_TOKEN || "").trim();
+  const chatId = String(body.telegram?.chatId || body.chatId || process.env.TELEGRAM_CHAT_ID || "").trim();
+
+  if (!token || !chatId) {
+    json(response, 400, { error: "Telegram bot token and chat id are required" });
+    return;
+  }
 
   if (!text) {
     json(response, 400, { error: "text is required" });

@@ -47,6 +47,7 @@ const recommendations = [
 ];
 
 const ALERT_STORAGE_KEY = "rsi-signal-alerts";
+const TELEGRAM_SETTINGS_KEY = "rsi-signal-telegram-settings";
 
 let alerts = [
   { id: "alert-1", symbol: "TQQQ", period: "120분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: true, channels: { app: true, kakao: false, telegram: true }, message: "TQQQ 120분봉 RSI가 30 이하로 내려왔습니다." },
@@ -90,10 +91,31 @@ function saveAlerts() {
 
 loadSavedAlerts();
 
+function loadTelegramSettings() {
+  try {
+    const raw = localStorage.getItem(TELEGRAM_SETTINGS_KEY);
+    if (!raw) return { botToken: "", chatId: "" };
+
+    const saved = JSON.parse(raw);
+    return {
+      botToken: String(saved.botToken || "").trim(),
+      chatId: String(saved.chatId || "").trim()
+    };
+  } catch {
+    localStorage.removeItem(TELEGRAM_SETTINGS_KEY);
+    return { botToken: "", chatId: "" };
+  }
+}
+
+function saveTelegramSettings() {
+  localStorage.setItem(TELEGRAM_SETTINGS_KEY, JSON.stringify(telegramSettings));
+}
+
 function cloneAlerts(items) {
   return JSON.parse(JSON.stringify(items));
 }
 
+let telegramSettings = loadTelegramSettings();
 let activeAlerts = cloneAlerts(alerts);
 let alertIdCounter = Math.max(0, ...alerts.map((alert) => Number(String(alert.id).replace("alert-", "")) || 0)) + 1;
 
@@ -107,6 +129,9 @@ const state = {
   deleteMode: false,
   addStockOpen: false,
   addAlertOpen: false,
+  telegramSettingsOpen: false,
+  telegramSettingsStatus: "",
+  telegramSettingsTesting: false,
   authModalOpen: false,
   authChecked: false,
   authError: "",
@@ -198,6 +223,15 @@ function markAlertSettingsDirty() {
   state.alertSettingsDirty = true;
 }
 
+function hasTelegramSettings() {
+  return Boolean(telegramSettings.botToken && telegramSettings.chatId);
+}
+
+function telegramSettingsSummary() {
+  if (!hasTelegramSettings()) return "Bot token과 chat id를 입력해 주세요.";
+  return `Chat ID ${telegramSettings.chatId}`;
+}
+
 function alertPeriodKey(period) {
   return period.replace("봉", "");
 }
@@ -247,15 +281,61 @@ function telegramText(alert, value) {
 }
 
 async function sendTelegramAlert(alert, value) {
+  if (!hasTelegramSettings()) {
+    throw new Error("텔레그램 설정이 필요합니다.");
+  }
+
   const response = await fetch("/api/telegram/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: telegramText(alert, value) })
+    body: JSON.stringify({
+      text: telegramText(alert, value),
+      telegram: telegramSettings
+    })
   });
 
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload.error || "telegram send failed");
+  }
+}
+
+async function sendTelegramTest() {
+  if (!hasTelegramSettings()) {
+    state.telegramSettingsStatus = "Bot token과 chat id를 먼저 저장해 주세요.";
+    render();
+    return;
+  }
+
+  state.telegramSettingsTesting = true;
+  state.telegramSettingsStatus = "테스트 메시지 전송 중";
+  render();
+
+  try {
+    const response = await fetch("/api/telegram/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        telegram: telegramSettings,
+        text: [
+          "[RSI Signal 테스트]",
+          "텔레그램 알림 테스트 메시지입니다.",
+          `시간: ${formatDateTime(new Date())}`
+        ].join("\n")
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(payload.error || "telegram test failed");
+    }
+
+    state.telegramSettingsStatus = "테스트 메시지를 보냈습니다.";
+  } catch (error) {
+    state.telegramSettingsStatus = `전송 실패: ${error.message}`;
+  } finally {
+    state.telegramSettingsTesting = false;
+    render();
   }
 }
 
@@ -529,6 +609,29 @@ function renderOverlay() {
               <button class="small-btn is-primary" type="button" data-action="login">로그인</button>
             </div>
           `}
+        </section>
+      </div>
+    `;
+  }
+
+  if (state.telegramSettingsOpen) {
+    return `
+      <div class="modal-backdrop" role="presentation">
+        <section class="modal telegram-modal" role="dialog" aria-modal="true" aria-labelledby="telegramSettingsTitle">
+          <div class="modal-head">
+            <h2 id="telegramSettingsTitle">텔레그램 설정</h2>
+            <button class="modal-close" type="button" data-action="close-telegram-settings" aria-label="닫기">×</button>
+          </div>
+          <label class="label" for="telegramBotToken">Bot token</label>
+          <input id="telegramBotToken" class="auth-input" type="password" value="${escapeHtml(telegramSettings.botToken)}" placeholder="123456789:ABC..." autocomplete="off" />
+          <label class="label" for="telegramChatId">Chat ID</label>
+          <input id="telegramChatId" class="auth-input" type="text" value="${escapeHtml(telegramSettings.chatId)}" placeholder="-1001234567890" autocomplete="off" />
+          ${state.telegramSettingsStatus ? `<p class="telegram-status">${escapeHtml(state.telegramSettingsStatus)}</p>` : ""}
+          <div class="modal-actions is-triple">
+            <button class="small-btn" type="button" data-action="close-telegram-settings">취소</button>
+            <button class="small-btn" type="button" data-action="test-telegram" ${state.telegramSettingsTesting ? "disabled" : ""}>${state.telegramSettingsTesting ? "전송 중" : "테스트"}</button>
+            <button class="small-btn is-primary" type="button" data-action="save-telegram-settings">저장</button>
+          </div>
         </section>
       </div>
     `;
@@ -810,6 +913,17 @@ function renderAlerts() {
     : alerts.filter((alert) => alert.symbol === state.selectedAlertSymbol);
 
   return `
+    <section class="telegram-settings-card">
+      <div>
+        <strong>텔레그램 알림</strong>
+        <span>${escapeHtml(telegramSettingsSummary())}</span>
+        ${state.telegramSettingsStatus ? `<em>${escapeHtml(state.telegramSettingsStatus)}</em>` : ""}
+      </div>
+      <div class="telegram-settings-actions">
+        <button class="small-btn" type="button" data-action="open-telegram-settings">설정</button>
+        <button class="small-btn is-primary" type="button" data-action="test-telegram" ${hasTelegramSettings() && !state.telegramSettingsTesting ? "" : "disabled"}>${state.telegramSettingsTesting ? "전송 중" : "알람 테스트"}</button>
+      </div>
+    </section>
     <div class="alert-symbol-tabs" aria-label="알림 종목">
       <button class="alert-symbol-tab ${state.selectedAlertSymbol === "all" ? "is-active" : ""}" type="button" data-action="select-alert-symbol" data-symbol="all">
         <strong>전체</strong>
@@ -860,6 +974,7 @@ document.addEventListener("click", async (event) => {
     state.selectedAlertId = detailRow.dataset.alertId;
     state.addAlertOpen = false;
     state.addStockOpen = false;
+    state.telegramSettingsOpen = false;
     render();
     return;
   }
@@ -903,6 +1018,7 @@ document.addEventListener("click", async (event) => {
     state.addAlertOpen = true;
     state.addStockOpen = false;
     state.authModalOpen = false;
+    state.telegramSettingsOpen = false;
     render();
     requestAnimationFrame(() => document.querySelector("#alertSymbol")?.focus());
   }
@@ -910,6 +1026,43 @@ document.addEventListener("click", async (event) => {
   if (target.dataset.action === "close-add-alert") {
     state.addAlertOpen = false;
     render();
+  }
+
+  if (target.dataset.action === "open-telegram-settings") {
+    state.telegramSettingsOpen = true;
+    state.addAlertOpen = false;
+    state.addStockOpen = false;
+    state.authModalOpen = false;
+    state.selectedAlertId = "";
+    render();
+    requestAnimationFrame(() => document.querySelector("#telegramBotToken")?.focus());
+  }
+
+  if (target.dataset.action === "close-telegram-settings") {
+    state.telegramSettingsOpen = false;
+    state.telegramSettingsStatus = "";
+    render();
+  }
+
+  if (target.dataset.action === "save-telegram-settings") {
+    telegramSettings = {
+      botToken: document.querySelector("#telegramBotToken")?.value.trim() || "",
+      chatId: document.querySelector("#telegramChatId")?.value.trim() || ""
+    };
+    saveTelegramSettings();
+    state.telegramSettingsStatus = hasTelegramSettings() ? "텔레그램 설정을 저장했습니다." : "Bot token과 chat id를 입력해 주세요.";
+    render();
+  }
+
+  if (target.dataset.action === "test-telegram") {
+    if (state.telegramSettingsOpen) {
+      telegramSettings = {
+        botToken: document.querySelector("#telegramBotToken")?.value.trim() || "",
+        chatId: document.querySelector("#telegramChatId")?.value.trim() || ""
+      };
+      saveTelegramSettings();
+    }
+    await sendTelegramTest();
   }
 
   if (target.dataset.action === "close-alert-detail") {
@@ -922,6 +1075,7 @@ document.addEventListener("click", async (event) => {
     state.authError = "";
     state.addAlertOpen = false;
     state.addStockOpen = false;
+    state.telegramSettingsOpen = false;
     state.selectedAlertId = "";
     render();
     requestAnimationFrame(() => document.querySelector("#loginId")?.focus());

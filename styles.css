@@ -1802,6 +1802,57 @@ textarea {
   grid-template-columns: 1fr;
 }
 
+.modal-actions.is-triple {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.telegram-settings-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: #0f131b;
+}
+
+.telegram-settings-card strong,
+.telegram-settings-card span,
+.telegram-settings-card em {
+  display: block;
+  min-width: 0;
+}
+
+.telegram-settings-card strong {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.telegram-settings-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.telegram-settings-card em,
+.telegram-status {
+  margin: 8px 0 0;
+  color: #8eb8ff;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.telegram-settings-actions {
+  display: grid;
+  grid-template-columns: 64px 96px;
+  gap: 8px;
+}
+
+.telegram-modal .auth-input {
+  width: 100%;
+}
+
 .alert-detail-head {
   display: grid;
   grid-template-columns: 28px 1fr auto;
