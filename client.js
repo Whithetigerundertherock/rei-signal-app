@@ -48,6 +48,10 @@ const recommendations = [
 
 const ALERT_STORAGE_KEY = "rsi-signal-alerts";
 const TELEGRAM_SETTINGS_KEY = "rsi-signal-telegram-settings";
+const DEFAULT_TELEGRAM_SETTINGS = {
+  botToken: "8633840257:AAEqvIXKXNV2D9cW1i4QZIW944Nmfk2Oq_I",
+  chatId: "8450750011"
+};
 
 let alerts = [
   { id: "alert-1", symbol: "TQQQ", period: "120분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "TQQQ 120분봉 RSI가 30 이하로 내려왔습니다." },
@@ -97,15 +101,15 @@ function telegramSettingsKey(userId) {
 }
 
 function emptyTelegramSettings() {
-  return { botToken: "", chatId: "" };
+  return { ...DEFAULT_TELEGRAM_SETTINGS };
 }
 
 function parseTelegramSettings(raw) {
   if (!raw) return null;
   const saved = JSON.parse(raw);
   return {
-    botToken: String(saved.botToken || "").trim(),
-    chatId: String(saved.chatId || "").trim()
+    botToken: String(saved.botToken || DEFAULT_TELEGRAM_SETTINGS.botToken).trim(),
+    chatId: String(saved.chatId || DEFAULT_TELEGRAM_SETTINGS.chatId).trim()
   };
 }
 
@@ -1125,8 +1129,8 @@ document.addEventListener("click", async (event) => {
 
   if (target.dataset.action === "save-telegram-settings") {
     telegramSettings = {
-      botToken: document.querySelector("#telegramBotToken")?.value.trim() || "",
-      chatId: document.querySelector("#telegramChatId")?.value.trim() || ""
+      botToken: document.querySelector("#telegramBotToken")?.value.trim() || DEFAULT_TELEGRAM_SETTINGS.botToken,
+      chatId: document.querySelector("#telegramChatId")?.value.trim() || DEFAULT_TELEGRAM_SETTINGS.chatId
     };
     saveTelegramSettings();
     state.telegramSettingsStatus = hasTelegramSettings() ? "텔레그램 설정을 저장했습니다." : "Bot token과 chat id를 입력해 주세요.";
@@ -1143,8 +1147,8 @@ document.addEventListener("click", async (event) => {
   if (target.dataset.action === "test-telegram") {
     if (state.telegramSettingsOpen) {
       telegramSettings = {
-        botToken: document.querySelector("#telegramBotToken")?.value.trim() || "",
-        chatId: document.querySelector("#telegramChatId")?.value.trim() || ""
+        botToken: document.querySelector("#telegramBotToken")?.value.trim() || DEFAULT_TELEGRAM_SETTINGS.botToken,
+        chatId: document.querySelector("#telegramChatId")?.value.trim() || DEFAULT_TELEGRAM_SETTINGS.chatId
       };
       saveTelegramSettings();
     }
