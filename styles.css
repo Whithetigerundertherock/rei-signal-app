@@ -2040,33 +2040,50 @@ textarea {
 
 .alert-list-actions {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 0.58fr);
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 26px;
 }
 
 .add-alert-button {
-  min-height: 74px;
+  min-height: 58px;
   border: 2px solid #075fff;
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(0, 72, 176, 0.22), rgba(0, 45, 118, 0.16));
   color: #0d6dff;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 900;
   box-shadow: inset 0 0 22px rgba(0, 87, 255, 0.14);
 }
 
 .add-alert-button span {
   display: inline-block;
-  margin-right: 8px;
-  font-size: 34px;
+  margin-right: 6px;
+  font-size: 27px;
   font-weight: 450;
   line-height: 0;
 }
 
+.server-save-button {
+  min-width: 0;
+  min-height: 58px;
+  border: 1px solid #1c345c;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #0f2751, #0a1730);
+  color: #dbeaff;
+  font-size: 15px;
+  font-weight: 840;
+}
+
+.server-save-button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
 .alert-delete-actions {
   display: none;
+  grid-column: 1 / -1;
   grid-template-columns: minmax(0, 1fr) 86px;
   align-items: center;
   gap: 8px;
@@ -2161,28 +2178,6 @@ textarea {
 .alert-select-btn[aria-checked="true"] {
   border-color: #244f8d;
   background: linear-gradient(180deg, #123b72, #0b2448);
-}
-
-.apply-bar {
-  position: sticky;
-  bottom: 0;
-  z-index: 4;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 86px;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-  padding: 10px;
-  border: 1px solid var(--line-soft);
-  border-radius: 8px;
-  background: rgba(10, 13, 18, 0.96);
-  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.28);
-}
-
-.apply-bar span {
-  min-width: 0;
-  color: var(--muted);
-  font-size: 12px;
 }
 
 .subtle {
@@ -2863,9 +2858,9 @@ textarea {
     height: 22px;
   }
 
-  .add-alert-button {
+  .add-alert-button,
+  .server-save-button {
     min-height: 58px;
-    font-size: 18px;
   }
 }
 
@@ -2882,10 +2877,6 @@ textarea {
   .form-grid,
   .alert-modal-grid,
   .repeat-row {
-    grid-template-columns: 1fr;
-  }
-
-  .alert-list-actions {
     grid-template-columns: 1fr;
   }
 

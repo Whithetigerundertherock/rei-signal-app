@@ -1081,6 +1081,7 @@ function renderAlerts() {
     </section>
     <section class="alert-list-actions">
       <button class="add-alert-button" type="button" data-action="add-alert"><span aria-hidden="true">+</span> 알림 추가</button>
+      <button class="server-save-button" type="button" data-action="apply-alert-settings" ${state.alertSettingsDirty ? "" : "disabled"}>서버에 저장</button>
       <div class="alert-delete-actions ${selectedCount ? "is-visible" : ""}">
         <span>${selectedCount ? `${selectedCount}개 선택됨` : "삭제할 알림을 선택하세요"}</span>
         <button class="small-btn" type="button" data-action="delete-selected-alerts" ${selectedCount ? "" : "disabled"}>선택 삭제</button>
@@ -1111,10 +1112,6 @@ function renderAlerts() {
         <button class="switch ${alert.enabled ? "is-on" : ""}" type="button" data-action="alert-switch" data-alert-id="${alert.id}" data-symbol="${alert.symbol}" aria-label="사용 여부"></button>
       </article>
     `).join("") || `<p class="empty-state">알림 설정이 없습니다.</p>`}
-    <div class="apply-bar">
-      <span>${state.alertSettingsDirty ? "서버 저장이 필요합니다." : "서버에 저장되었습니다."}</span>
-      <button class="small-btn is-primary" type="button" data-action="apply-alert-settings" ${state.alertSettingsDirty ? "" : "disabled"}>서버에 저장</button>
-    </div>
   `;
 }
 
