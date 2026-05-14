@@ -149,6 +149,15 @@ async function saveServerAlertSettings() {
   }
 }
 
+async function persistAlertSettings() {
+  activeAlerts = cloneAlerts(alerts);
+  state.alertTriggerState = new Map();
+  saveAlerts();
+  const serverSynced = await saveServerAlertSettings();
+  state.alertSettingsDirty = !serverSynced;
+  return serverSynced;
+}
+
 async function loadServerAlertSettings() {
   if (!state.user) return false;
 
@@ -157,12 +166,12 @@ async function loadServerAlertSettings() {
     if (!response.ok) return false;
 
     const payload = await response.json();
-    if (Array.isArray(payload.alerts) && payload.alerts.length) {
+    if (payload.persisted && Array.isArray(payload.alerts)) {
       alerts = payload.alerts;
       activeAlerts = cloneAlerts(alerts);
       alertIdCounter = Math.max(0, ...alerts.map((alert) => Number(String(alert.id).replace("alert-", "")) || 0)) + 1;
       saveAlerts();
-    } else if (alerts.length) {
+    } else if (!payload.persisted && alerts.length) {
       await saveServerAlertSettings();
     }
     if (payload.telegram?.botToken || payload.telegram?.chatId) {
@@ -1382,7 +1391,7 @@ document.addEventListener("click", async (event) => {
     state.selectedAlertSymbol = symbol;
     state.addAlertOpen = false;
     state.addAlertDraft = defaultAlertDraft();
-    markAlertSettingsDirty();
+    await persistAlertSettings();
     render();
   }
 
@@ -1397,7 +1406,7 @@ document.addEventListener("click", async (event) => {
     };
     alert.message = document.querySelector("#detailAlertText")?.value.trim() || alert.message;
     state.selectedAlertId = "";
-    markAlertSettingsDirty();
+    await persistAlertSettings();
     render();
   }
 
@@ -1407,7 +1416,7 @@ document.addEventListener("click", async (event) => {
     alerts = alerts.filter((alert) => !state.selectedAlertIds.has(alert.id));
     state.selectedAlertIds = new Set();
     state.selectedAlertId = "";
-    markAlertSettingsDirty();
+    await persistAlertSettings();
     render();
   }
 
@@ -1415,16 +1424,12 @@ document.addEventListener("click", async (event) => {
     const index = alerts.findIndex((item) => item.id === state.selectedAlertId);
     if (index >= 0) alerts.splice(index, 1);
     state.selectedAlertId = "";
-    markAlertSettingsDirty();
+    await persistAlertSettings();
     render();
   }
 
   if (target.dataset.action === "apply-alert-settings") {
-    activeAlerts = cloneAlerts(alerts);
-    state.alertSettingsDirty = false;
-    state.alertTriggerState = new Map();
-    saveAlerts();
-    await saveServerAlertSettings();
+    await persistAlertSettings();
     render();
     updateRealIndicators({ silent: true });
   }
@@ -1503,7 +1508,7 @@ document.addEventListener("click", async (event) => {
     const alert = alerts.find((item) => item.id === target.dataset.alertId);
     if (alert) {
       alert.enabled = !alert.enabled;
-      markAlertSettingsDirty();
+      await persistAlertSettings();
     }
     target.classList.toggle("is-on");
   }

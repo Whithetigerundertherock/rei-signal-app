@@ -24,6 +24,7 @@ const alertRuntime = {
   telegram: { ...defaultTelegramSettings },
   triggerState: new Map(),
   loaded: false,
+  persisted: false,
   checking: false
 };
 
@@ -224,6 +225,7 @@ async function loadAlertSettings() {
     const saved = JSON.parse(raw);
     alertRuntime.alerts = normalizeAlerts(saved.alerts);
     alertRuntime.telegram = normalizeTelegramSettings(saved.telegram);
+    alertRuntime.persisted = true;
   } catch (error) {
     if (error.code !== "ENOENT") console.warn(`알림 설정 로드 실패: ${error.message}`);
   } finally {
@@ -402,7 +404,8 @@ async function handleAlertSettings(request, response) {
   if (request.method === "GET") {
     json(response, 200, {
       alerts: alertRuntime.alerts,
-      telegram: alertRuntime.telegram
+      telegram: alertRuntime.telegram,
+      persisted: alertRuntime.persisted
     });
     return;
   }
@@ -416,12 +419,14 @@ async function handleAlertSettings(request, response) {
   alertRuntime.alerts = normalizeAlerts(body.alerts);
   alertRuntime.telegram = normalizeTelegramSettings(body.telegram);
   alertRuntime.triggerState = new Map();
+  alertRuntime.persisted = true;
   await saveAlertSettings();
 
   json(response, 200, {
     ok: true,
     alerts: alertRuntime.alerts,
-    telegram: alertRuntime.telegram
+    telegram: alertRuntime.telegram,
+    persisted: alertRuntime.persisted
   });
 }
 
