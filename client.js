@@ -1112,8 +1112,8 @@ function renderAlerts() {
       </article>
     `).join("") || `<p class="empty-state">알림 설정이 없습니다.</p>`}
     <div class="apply-bar">
-      <span>${state.alertSettingsDirty ? "적용되지 않은 변경사항이 있습니다." : "현재 알림 설정이 적용되어 있습니다."}</span>
-      <button class="small-btn is-primary" type="button" data-action="apply-alert-settings" ${state.alertSettingsDirty ? "" : "disabled"}>적용</button>
+      <span>${state.alertSettingsDirty ? "서버 저장이 필요합니다." : "서버에 저장되었습니다."}</span>
+      <button class="small-btn is-primary" type="button" data-action="apply-alert-settings" ${state.alertSettingsDirty ? "" : "disabled"}>서버에 저장</button>
     </div>
   `;
 }
