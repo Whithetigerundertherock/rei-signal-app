@@ -10,6 +10,7 @@ const ALERT_SETTINGS_FILE = path.join(DATA_DIR, "alert-settings.json");
 const RSI_PERIOD = 7;
 const LOGIN_ID = process.env.RSI_LOGIN_ID || "kim";
 const LOGIN_PASSWORD = process.env.RSI_LOGIN_PASSWORD || "1234";
+const CRON_SECRET = process.env.CRON_SECRET || "";
 const SESSION_COOKIE = "rsi_signal_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const ALERT_CHECK_MS = 10000;
@@ -459,11 +460,13 @@ async function handleTelegramSend(request, response) {
 
 async function checkServerAlerts() {
   await loadAlertSettings();
-  if (alertRuntime.checking) return;
+  if (alertRuntime.checking) return { skipped: true, reason: "already checking", sent: 0 };
 
   const telegram = normalizeTelegramSettings(alertRuntime.telegram);
   const activeAlerts = alertRuntime.alerts.filter((alert) => alert.enabled && alert.channels?.telegram);
-  if (!activeAlerts.length || !telegram.botToken || !telegram.chatId) return;
+  if (!activeAlerts.length || !telegram.botToken || !telegram.chatId) {
+    return { skipped: true, reason: "missing alerts or telegram settings", sent: 0 };
+  }
 
   alertRuntime.checking = true;
 
@@ -502,9 +505,29 @@ async function checkServerAlerts() {
     const results = await Promise.allSettled(sends);
     const failed = results.find((result) => result.status === "rejected");
     if (failed) console.warn(`서버 텔레그램 알림 전송 실패: ${failed.reason.message}`);
+    return {
+      checked: activeAlerts.length,
+      sent: results.filter((result) => result.status === "fulfilled").length,
+      failed: results.filter((result) => result.status === "rejected").length
+    };
   } finally {
     alertRuntime.checking = false;
   }
+}
+
+async function handleCronAlertCheck(request, response, url) {
+  const secret = url.searchParams.get("secret") || request.headers["x-cron-secret"] || "";
+  if (CRON_SECRET && !timingSafeEqualText(secret, CRON_SECRET)) {
+    json(response, 401, { error: "invalid cron secret" });
+    return;
+  }
+
+  const result = await checkServerAlerts();
+  json(response, 200, {
+    ok: true,
+    checkedAt: formatTime(),
+    ...result
+  });
 }
 
 function startAlertWatcher() {
@@ -589,6 +612,11 @@ const server = http.createServer(async (request, response) => {
 
     if (url.pathname === "/healthz") {
       json(response, 200, { ok: true });
+      return;
+    }
+
+    if (url.pathname === "/api/cron/check-alerts") {
+      await handleCronAlertCheck(request, response, url);
       return;
     }
 

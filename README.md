@@ -19,9 +19,9 @@ TELEGRAM_BOT_TOKEN=your_bot_token TELEGRAM_CHAT_ID=your_chat_id node server.js
 
 ## Render deployment
 
-This repo includes `render.yaml` for a Render web service with a persistent disk.
+This repo includes `render.yaml` for a Render Free web service.
 
-Use a paid Render instance type such as `starter`. Render Free web services spin down after idle time, and their local filesystem is ephemeral, so they are not suitable for always-on RSI alerts.
+Render Free web services spin down after idle time, and their local filesystem is ephemeral. For free alert checks while the web page is closed, configure an external scheduler such as cron-job.org to call the cron endpoint every 5-10 minutes.
 
 Required Render environment variables:
 
@@ -30,6 +30,13 @@ RSI_LOGIN_ID=your_login_id
 RSI_LOGIN_PASSWORD=your_login_password
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
+CRON_SECRET=long_random_secret
 ```
 
-Applied alert settings are saved under `ALERT_DATA_DIR` (`/var/data` on Render). Keep the Render service running to receive Telegram alerts even when the web page is closed.
+Cron URL:
+
+```bash
+https://YOUR_RENDER_URL/api/cron/check-alerts?secret=CRON_SECRET
+```
+
+Applied alert settings are saved to the service filesystem. On Render Free, re-apply alert settings after a redeploy, restart, or spin-down if they disappear.
