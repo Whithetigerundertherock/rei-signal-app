@@ -158,7 +158,7 @@ function aggregateCloses(points, minutes) {
 }
 
 async function fetchYahooChart(symbol, range, interval) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}&includePrePost=false`;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}&includePrePost=true`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
 
@@ -188,15 +188,25 @@ function toPoints(chart) {
   }));
 }
 
+function latestClose(points) {
+  for (let index = points.length - 1; index >= 0; index -= 1) {
+    const close = points[index]?.close;
+    if (Number.isFinite(close)) return close;
+  }
+  return null;
+}
+
 async function getIndicators(symbol, periods) {
   const needsIntraday = periods.some((period) => intradayPeriods[period]);
   const rsi = {};
   let meta;
+  let currentPrice = null;
 
   if (needsIntraday) {
     const intraday = await fetchYahooChart(symbol, "7d", "1m");
     meta = intraday.meta;
     const points = toPoints(intraday);
+    currentPrice = latestClose(points);
 
     periods.forEach((period) => {
       const minutes = intradayPeriods[period];
@@ -223,7 +233,7 @@ async function getIndicators(symbol, periods) {
     rsi["월"] = calculateRsi(toPoints(monthly).map((point) => point.close));
   }
 
-  const price = meta?.regularMarketPrice ?? meta?.chartPreviousClose ?? null;
+  const price = currentPrice ?? meta?.regularMarketPrice ?? meta?.chartPreviousClose ?? null;
   const previousClose = meta?.previousClose ?? meta?.chartPreviousClose ?? null;
   const change = Number.isFinite(price) && Number.isFinite(previousClose) && previousClose !== 0
     ? ((price - previousClose) / previousClose) * 100
