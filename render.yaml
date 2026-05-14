@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: rsi-signal-app
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ALERT_DATA_DIR
+        value: /var/data
+      - key: RSI_LOGIN_ID
+        sync: false
+      - key: RSI_LOGIN_PASSWORD
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+    disk:
+      name: rsi-signal-data
+      mountPath: /var/data
+      sizeGB: 1

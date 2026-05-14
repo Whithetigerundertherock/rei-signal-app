@@ -131,6 +131,53 @@ function saveTelegramSettings() {
   localStorage.setItem(telegramSettingsKey(state.user?.id), JSON.stringify(telegramSettings));
 }
 
+async function saveServerAlertSettings() {
+  if (!state.user) return false;
+
+  try {
+    const response = await fetch("/api/alerts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        alerts,
+        telegram: telegramSettings
+      })
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function loadServerAlertSettings() {
+  if (!state.user) return false;
+
+  try {
+    const response = await fetch("/api/alerts");
+    if (!response.ok) return false;
+
+    const payload = await response.json();
+    if (Array.isArray(payload.alerts) && payload.alerts.length) {
+      alerts = payload.alerts;
+      activeAlerts = cloneAlerts(alerts);
+      alertIdCounter = Math.max(0, ...alerts.map((alert) => Number(String(alert.id).replace("alert-", "")) || 0)) + 1;
+      saveAlerts();
+    } else if (alerts.length) {
+      await saveServerAlertSettings();
+    }
+    if (payload.telegram?.botToken || payload.telegram?.chatId) {
+      telegramSettings = {
+        botToken: String(payload.telegram.botToken || DEFAULT_TELEGRAM_SETTINGS.botToken).trim(),
+        chatId: String(payload.telegram.chatId || DEFAULT_TELEGRAM_SETTINGS.chatId).trim()
+      };
+      saveTelegramSettings();
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function readAddAlertDraft() {
   if (!state.addAlertOpen) return;
 
@@ -1204,7 +1251,10 @@ document.addEventListener("click", async (event) => {
       chatId: document.querySelector("#telegramChatId")?.value.trim() || DEFAULT_TELEGRAM_SETTINGS.chatId
     };
     saveTelegramSettings();
-    state.telegramSettingsStatus = hasTelegramSettings() ? "텔레그램 설정을 저장했습니다." : "Bot token과 chat id를 입력해 주세요.";
+    const serverSynced = await saveServerAlertSettings();
+    state.telegramSettingsStatus = hasTelegramSettings()
+      ? serverSynced ? "텔레그램 설정을 저장했습니다. 서버 알림도 활성화되었습니다." : "텔레그램 설정을 저장했습니다. 서버 저장은 실패했습니다."
+      : "Bot token과 chat id를 입력해 주세요.";
     render();
   }
 
@@ -1288,6 +1338,7 @@ document.addEventListener("click", async (event) => {
 
       state.user = payload.user || { id };
       syncTelegramSettingsForUser(state.user);
+      await loadServerAlertSettings();
       state.authModalOpen = false;
       state.authError = "";
       state.marketLoaded = false;
@@ -1373,6 +1424,7 @@ document.addEventListener("click", async (event) => {
     state.alertSettingsDirty = false;
     state.alertTriggerState = new Map();
     saveAlerts();
+    await saveServerAlertSettings();
     render();
     updateRealIndicators({ silent: true });
   }
@@ -1469,6 +1521,7 @@ async function checkSession() {
     const payload = await response.json();
     state.user = payload.authenticated ? payload.user : null;
     syncTelegramSettingsForUser(state.user);
+    await loadServerAlertSettings();
   } catch {
     state.user = null;
     telegramSettings = emptyTelegramSettings();

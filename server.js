@@ -5,12 +5,26 @@ const path = require("node:path");
 
 const PORT = Number(process.env.PORT || 5175);
 const ROOT = __dirname;
+const DATA_DIR = process.env.ALERT_DATA_DIR || path.join(ROOT, "data");
+const ALERT_SETTINGS_FILE = path.join(DATA_DIR, "alert-settings.json");
 const RSI_PERIOD = 7;
 const LOGIN_ID = process.env.RSI_LOGIN_ID || "kim";
 const LOGIN_PASSWORD = process.env.RSI_LOGIN_PASSWORD || "1234";
 const SESSION_COOKIE = "rsi_signal_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const ALERT_CHECK_MS = 10000;
 const sessions = new Map();
+const defaultTelegramSettings = {
+  botToken: process.env.TELEGRAM_BOT_TOKEN || "",
+  chatId: process.env.TELEGRAM_CHAT_ID || ""
+};
+const alertRuntime = {
+  alerts: [],
+  telegram: { ...defaultTelegramSettings },
+  triggerState: new Map(),
+  loaded: false,
+  checking: false
+};
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -140,6 +154,108 @@ function calculateRsi(closes) {
 
   if (averageLoss === 0) return 100;
   return 100 - 100 / (1 + averageGain / averageLoss);
+}
+
+function alertPeriodKey(period) {
+  return String(period || "").replace("봉", "");
+}
+
+function alertIdentity(alert) {
+  return `${alert.symbol}:${alert.period}:${alert.direction}:${alert.threshold}`;
+}
+
+function isAlertTriggered(alert, value) {
+  return alert.direction === "high" ? value >= alert.threshold : value <= alert.threshold;
+}
+
+function alertTelegramText(alert, value) {
+  const directionText = alert.direction === "high" ? "이상으로 올라갔습니다." : "이하로 내려왔습니다.";
+  return [
+    `[RSI Signal] ${alert.symbol} 알림`,
+    alert.message || `${alert.period} RSI가 ${alert.threshold} ${directionText}`,
+    `현재 RSI: ${Math.round(value)}`,
+    `조건: ${alert.condition}`,
+    `시간: ${formatTime()}`
+  ].join("\n");
+}
+
+function normalizeTelegramSettings(settings = {}) {
+  return {
+    botToken: String(settings.botToken || defaultTelegramSettings.botToken || "").trim(),
+    chatId: String(settings.chatId || defaultTelegramSettings.chatId || "").trim()
+  };
+}
+
+function normalizeAlert(alert, index) {
+  const symbol = String(alert.symbol || "").trim().toUpperCase();
+  const period = String(alert.period || "").trim();
+  const threshold = Number(alert.threshold);
+  const direction = alert.direction === "high" ? "high" : "low";
+  if (!symbol || !period || !Number.isFinite(threshold)) return null;
+
+  return {
+    id: String(alert.id || `alert-${index + 1}`),
+    symbol,
+    period,
+    condition: String(alert.condition || `RSI ${threshold} ${direction === "high" ? "이상" : "이하"}`),
+    threshold,
+    direction,
+    enabled: alert.enabled !== false,
+    channels: {
+      app: false,
+      kakao: false,
+      telegram: alert.channels?.telegram === true
+    },
+    message: String(alert.message || `${symbol} ${period} RSI ${threshold} ${direction === "high" ? "이상" : "이하"} 조건에 도달했습니다.`)
+  };
+}
+
+function normalizeAlerts(items) {
+  if (!Array.isArray(items)) return [];
+  return items.map(normalizeAlert).filter(Boolean);
+}
+
+async function loadAlertSettings() {
+  if (alertRuntime.loaded) return;
+
+  try {
+    const raw = await fs.readFile(ALERT_SETTINGS_FILE, "utf8");
+    const saved = JSON.parse(raw);
+    alertRuntime.alerts = normalizeAlerts(saved.alerts);
+    alertRuntime.telegram = normalizeTelegramSettings(saved.telegram);
+  } catch (error) {
+    if (error.code !== "ENOENT") console.warn(`알림 설정 로드 실패: ${error.message}`);
+  } finally {
+    alertRuntime.loaded = true;
+  }
+}
+
+async function saveAlertSettings() {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(
+    ALERT_SETTINGS_FILE,
+    JSON.stringify({
+      alerts: alertRuntime.alerts,
+      telegram: alertRuntime.telegram
+    }, null, 2)
+  );
+}
+
+async function sendTelegramMessage({ token, chatId, text }) {
+  const telegramResponse = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      disable_web_page_preview: true
+    })
+  });
+
+  const payload = await telegramResponse.json().catch(() => ({}));
+  if (!telegramResponse.ok || payload.ok === false) {
+    throw new Error(payload.description || "telegram request failed");
+  }
 }
 
 function aggregateCloses(points, minutes) {
@@ -278,6 +394,36 @@ async function handleIndicators(request, response, url) {
   });
 }
 
+async function handleAlertSettings(request, response) {
+  if (!requireSession(request, response)) return;
+  await loadAlertSettings();
+
+  if (request.method === "GET") {
+    json(response, 200, {
+      alerts: alertRuntime.alerts,
+      telegram: alertRuntime.telegram
+    });
+    return;
+  }
+
+  if (request.method !== "POST") {
+    json(response, 405, { error: "method not allowed" });
+    return;
+  }
+
+  const body = await readJson(request);
+  alertRuntime.alerts = normalizeAlerts(body.alerts);
+  alertRuntime.telegram = normalizeTelegramSettings(body.telegram);
+  alertRuntime.triggerState = new Map();
+  await saveAlertSettings();
+
+  json(response, 200, {
+    ok: true,
+    alerts: alertRuntime.alerts,
+    telegram: alertRuntime.telegram
+  });
+}
+
 async function handleTelegramSend(request, response) {
   if (!requireSession(request, response)) return;
 
@@ -301,24 +447,75 @@ async function handleTelegramSend(request, response) {
     return;
   }
 
-  const telegramResponse = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      disable_web_page_preview: true
-    })
-  });
-
-  const payload = await telegramResponse.json().catch(() => ({}));
-
-  if (!telegramResponse.ok || payload.ok === false) {
-    json(response, 502, { error: payload.description || "telegram request failed" });
+  try {
+    await sendTelegramMessage({ token, chatId, text });
+  } catch (error) {
+    json(response, 502, { error: error.message });
     return;
   }
 
   json(response, 200, { ok: true });
+}
+
+async function checkServerAlerts() {
+  await loadAlertSettings();
+  if (alertRuntime.checking) return;
+
+  const telegram = normalizeTelegramSettings(alertRuntime.telegram);
+  const activeAlerts = alertRuntime.alerts.filter((alert) => alert.enabled && alert.channels?.telegram);
+  if (!activeAlerts.length || !telegram.botToken || !telegram.chatId) return;
+
+  alertRuntime.checking = true;
+
+  try {
+    const symbols = [...new Set(activeAlerts.map((alert) => alert.symbol))];
+    const periods = [...new Set(activeAlerts.map((alert) => alertPeriodKey(alert.period)).filter(Boolean))];
+    const indicatorResults = await Promise.all(symbols.map(async (symbol) => {
+      try {
+        return await getIndicators(symbol, periods);
+      } catch (error) {
+        console.warn(`${symbol} 서버 알림 지표 조회 실패: ${error.message}`);
+        return { symbol, rsi: {} };
+      }
+    }));
+    const bySymbol = new Map(indicatorResults.map((result) => [result.symbol, result]));
+    const sends = [];
+
+    activeAlerts.forEach((alert) => {
+      const value = bySymbol.get(alert.symbol)?.rsi?.[alertPeriodKey(alert.period)];
+      if (!Number.isFinite(value)) return;
+
+      const key = alertIdentity(alert);
+      const triggered = isAlertTriggered(alert, value);
+      const wasTriggered = alertRuntime.triggerState.get(key) || false;
+      alertRuntime.triggerState.set(key, triggered);
+
+      if (triggered && !wasTriggered) {
+        sends.push(sendTelegramMessage({
+          token: telegram.botToken,
+          chatId: telegram.chatId,
+          text: alertTelegramText(alert, value)
+        }));
+      }
+    });
+
+    const results = await Promise.allSettled(sends);
+    const failed = results.find((result) => result.status === "rejected");
+    if (failed) console.warn(`서버 텔레그램 알림 전송 실패: ${failed.reason.message}`);
+  } finally {
+    alertRuntime.checking = false;
+  }
+}
+
+function startAlertWatcher() {
+  setInterval(() => {
+    checkServerAlerts().catch((error) => {
+      console.warn(`서버 알림 체크 실패: ${error.message}`);
+    });
+  }, ALERT_CHECK_MS);
+  checkServerAlerts().catch((error) => {
+    console.warn(`서버 알림 체크 실패: ${error.message}`);
+  });
 }
 
 async function handleSession(request, response) {
@@ -390,6 +587,16 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/healthz") {
+      json(response, 200, { ok: true });
+      return;
+    }
+
+    if (url.pathname === "/api/alerts") {
+      await handleAlertSettings(request, response);
+      return;
+    }
+
     if (url.pathname === "/api/session") {
       await handleSession(request, response);
       return;
@@ -418,4 +625,5 @@ const server = http.createServer(async (request, response) => {
 
 server.listen(PORT, () => {
   console.log(`RSI Signal app: http://127.0.0.1:${PORT}`);
+  startAlertWatcher();
 });
