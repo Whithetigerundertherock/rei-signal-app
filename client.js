@@ -239,6 +239,11 @@ const state = {
   stockMenuOpen: false,
   deleteMode: false,
   addStockOpen: false,
+  stockSearchQuery: "",
+  stockSearchResults: [],
+  selectedStockResult: null,
+  stockSearchStatus: "",
+  stockSearching: false,
   addAlertOpen: false,
   addAlertDraft: defaultAlertDraft(),
   telegramSettingsOpen: false,
@@ -518,6 +523,51 @@ async function refreshWhenActive(options = {}) {
 
   await loadServerAlertSettings();
   await updateRealIndicators({ silent: true });
+}
+
+function resetStockSearch() {
+  state.stockSearchQuery = "";
+  state.stockSearchResults = [];
+  state.selectedStockResult = null;
+  state.stockSearchStatus = "";
+  state.stockSearching = false;
+}
+
+async function searchStockSymbol() {
+  const input = document.querySelector("#stockSymbol");
+  const query = input?.value.trim().toUpperCase() || state.stockSearchQuery;
+  state.stockSearchQuery = query;
+  state.selectedStockResult = null;
+
+  if (!query) {
+    state.stockSearchResults = [];
+    state.stockSearchStatus = "검색할 종목명을 입력해 주세요.";
+    render();
+    requestAnimationFrame(() => document.querySelector("#stockSymbol")?.focus());
+    return;
+  }
+
+  state.stockSearching = true;
+  state.stockSearchStatus = "조회 중";
+  render();
+
+  try {
+    const response = await fetch(`/api/symbol-search?q=${encodeURIComponent(query)}`);
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(payload.error || "symbol search failed");
+    }
+
+    state.stockSearchResults = payload.results || [];
+    state.stockSearchStatus = state.stockSearchResults.length ? "" : "조회 결과가 없습니다.";
+  } catch {
+    state.stockSearchResults = [];
+    state.stockSearchStatus = "종목 조회에 실패했습니다.";
+  } finally {
+    state.stockSearching = false;
+    render();
+  }
 }
 
 function render() {
@@ -856,6 +906,16 @@ function renderOverlay() {
   }
 
   if (!state.addStockOpen) return "";
+  const stockResults = state.stockSearchResults.map((result) => {
+    const selected = state.selectedStockResult?.symbol === result.symbol;
+    return `
+      <button class="stock-search-result ${selected ? "is-selected" : ""}" type="button" data-action="select-stock-result" data-symbol="${result.symbol}">
+        <strong>${escapeHtml(result.symbol)}</strong>
+        <span>${escapeHtml(result.name)}</span>
+        <em>${escapeHtml(result.exchange || result.type || "")}</em>
+      </button>
+    `;
+  }).join("");
 
   return `
     <div class="modal-backdrop" role="presentation">
@@ -865,10 +925,16 @@ function renderOverlay() {
           <button class="modal-close" type="button" data-action="close-add-stock" aria-label="닫기">×</button>
         </div>
         <label class="label" for="stockSymbol">종목명</label>
-        <input id="stockSymbol" class="stock-input" type="text" placeholder="예: META" autocomplete="off" />
+        <div class="stock-search-row">
+          <input id="stockSymbol" class="stock-input" type="text" value="${escapeHtml(state.stockSearchQuery)}" placeholder="예: META" autocomplete="off" />
+          <button class="small-btn" type="button" data-action="search-stock" ${state.stockSearching ? "disabled" : ""}>${state.stockSearching ? "조회 중" : "검색"}</button>
+        </div>
+        <div class="stock-search-results">
+          ${stockResults || `<p>${escapeHtml(state.stockSearchStatus || "검색 후 조회 목록에서 종목을 선택하세요.")}</p>`}
+        </div>
         <div class="modal-actions">
           <button class="small-btn" type="button" data-action="close-add-stock">취소</button>
-          <button class="small-btn is-primary" type="button" data-action="add-stock">추가</button>
+          <button class="small-btn is-primary" type="button" data-action="add-stock" ${state.selectedStockResult ? "" : "disabled"}>추가</button>
         </div>
       </section>
     </div>
@@ -1142,6 +1208,13 @@ document.querySelector(".bottom-nav").addEventListener("click", (event) => {
 });
 
 document.addEventListener("input", (event) => {
+  const stockField = event.target.closest("#stockSymbol");
+  if (stockField) {
+    state.stockSearchQuery = stockField.value.toUpperCase();
+    state.selectedStockResult = null;
+    return;
+  }
+
   if (!state.addAlertOpen) return;
   const field = event.target.closest("#alertThreshold, #newAlertText");
   if (!field) return;
@@ -1215,6 +1288,7 @@ document.addEventListener("click", async (event) => {
 
   if (target.dataset.action === "open-add-stock") {
     state.addStockOpen = true;
+    resetStockSearch();
     state.addAlertOpen = false;
     state.authModalOpen = false;
     state.stockMenuOpen = false;
@@ -1225,6 +1299,7 @@ document.addEventListener("click", async (event) => {
 
   if (target.dataset.action === "close-add-stock") {
     state.addStockOpen = false;
+    resetStockSearch();
     render();
   }
 
@@ -1444,24 +1519,43 @@ document.addEventListener("click", async (event) => {
     updateRealIndicators({ silent: true });
   }
 
+  if (target.dataset.action === "search-stock") {
+    await searchStockSymbol();
+  }
+
+  if (target.dataset.action === "select-stock-result") {
+    const result = state.stockSearchResults.find((item) => item.symbol === target.dataset.symbol);
+    if (result) {
+      state.selectedStockResult = result;
+      state.stockSearchQuery = result.symbol;
+      state.stockSearchStatus = "";
+      render();
+    }
+  }
+
   if (target.dataset.action === "add-stock") {
-    const input = document.querySelector("#stockSymbol");
-    const symbol = input?.value.trim().toUpperCase();
-    if (!symbol) {
-      input?.focus();
+    const selected = state.selectedStockResult;
+    if (!selected) {
+      state.stockSearchStatus = "조회 목록에서 추가할 종목을 선택해 주세요.";
+      render();
       return;
     }
+
+    const symbol = selected.symbol;
     if (!stocks.some((stock) => stock.symbol === symbol)) {
       stocks.push({
         symbol,
-        price: 100 + stocks.length * 7.35,
-        change: Math.round((Math.random() * 6 - 3) * 100) / 100,
+        price: 0,
+        change: 0,
         favorite: true,
-        rsi: { "1분": 48, "5분": 45, "30분": 42, "120분": 44 }
+        rsi: { "1분": 0, "5분": 0, "30분": 0, "120분": 0 }
       });
     }
     state.addStockOpen = false;
+    resetStockSearch();
+    state.marketLoaded = false;
     render();
+    updateRealIndicators({ silent: true });
   }
 
   if (target.dataset.action === "toggle-delete-mode") {
@@ -1525,6 +1619,15 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (state.addStockOpen && event.key === "Enter") {
+    const searchInput = event.target.closest("#stockSymbol");
+    if (searchInput) {
+      event.preventDefault();
+      searchStockSymbol();
+      return;
+    }
+  }
+
   if (!state.authModalOpen || event.key !== "Enter") return;
   const loginButton = document.querySelector("[data-action='login']");
   loginButton?.click();

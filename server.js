@@ -397,6 +397,45 @@ async function handleIndicators(request, response, url) {
   });
 }
 
+async function handleSymbolSearch(request, response, url) {
+  if (!requireSession(request, response)) return;
+
+  const query = String(url.searchParams.get("q") || "").trim();
+  if (!query) {
+    json(response, 400, { error: "query is required" });
+    return;
+  }
+
+  const searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  const yahooResponse = await fetch(searchUrl, {
+    signal: controller.signal,
+    headers: {
+      "User-Agent": "Mozilla/5.0 RSI Signal Prototype"
+    }
+  }).finally(() => clearTimeout(timeout));
+
+  if (!yahooResponse.ok) {
+    json(response, 502, { error: `Yahoo search failed: ${yahooResponse.status}` });
+    return;
+  }
+
+  const data = await yahooResponse.json();
+  const results = (data.quotes || [])
+    .filter((item) => item.symbol && item.quoteType !== "CRYPTOCURRENCY")
+    .slice(0, 6)
+    .map((item) => ({
+      symbol: String(item.symbol).toUpperCase(),
+      name: item.shortname || item.longname || item.name || item.symbol,
+      exchange: item.exchDisp || item.exchange || "",
+      type: item.quoteType || ""
+    }));
+
+  json(response, 200, { results });
+}
+
 async function handleAlertSettings(request, response) {
   if (!requireSession(request, response)) return;
   await loadAlertSettings();
@@ -612,6 +651,11 @@ const server = http.createServer(async (request, response) => {
   try {
     if (url.pathname === "/api/indicators") {
       await handleIndicators(request, response, url);
+      return;
+    }
+
+    if (url.pathname === "/api/symbol-search") {
+      await handleSymbolSearch(request, response, url);
       return;
     }
 
