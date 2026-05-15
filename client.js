@@ -414,37 +414,6 @@ function recordTriggeredAlert(alert, value) {
   ].slice(0, 8);
 }
 
-function telegramText(alert, value) {
-  const directionText = alert.direction === "high" ? "이상으로 올라갔습니다." : "이하로 내려왔습니다.";
-  return [
-    `[RSI Signal] ${alert.symbol} 알림`,
-    alert.message || `${alert.period} RSI가 ${alert.threshold} ${directionText}`,
-    `현재 RSI: ${Math.round(value)}`,
-    `조건: ${alert.condition}`,
-    `시간: ${formatDateTime(new Date())}`
-  ].join("\n");
-}
-
-async function sendTelegramAlert(alert, value) {
-  if (!hasTelegramSettings()) {
-    throw new Error("텔레그램 설정이 필요합니다.");
-  }
-
-  const response = await fetch("/api/telegram/send", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text: telegramText(alert, value),
-      telegram: telegramSettings
-    })
-  });
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.error || "telegram send failed");
-  }
-}
-
 async function sendTelegramTest() {
   if (!hasTelegramSettings()) {
     state.telegramSettingsStatus = "Bot token과 chat id를 먼저 저장해 주세요.";
@@ -485,8 +454,6 @@ async function sendTelegramTest() {
 }
 
 async function checkAlertTriggers() {
-  const sends = [];
-
   activeAlerts.forEach((alert) => {
     if (!alert.enabled) return;
 
@@ -502,17 +469,8 @@ async function checkAlertTriggers() {
 
     if (triggered && !wasTriggered) {
       recordTriggeredAlert(alert, value);
-      if (alert.channels?.telegram) sends.push(sendTelegramAlert(alert, value));
     }
   });
-
-  if (!sends.length) return;
-
-  const results = await Promise.allSettled(sends);
-  const failed = results.find((result) => result.status === "rejected");
-  if (failed) {
-    console.warn(`텔레그램 알림 전송 실패: ${failed.reason.message}`);
-  }
 }
 
 function syncAutoUpdate() {
