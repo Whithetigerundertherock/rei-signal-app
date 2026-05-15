@@ -692,6 +692,7 @@ body[data-screen="stocks"] .top-actions {
 
 .home-rank-list {
   overflow: hidden;
+  background: #000;
 }
 
 .home-rank-head,
@@ -705,7 +706,8 @@ body[data-screen="stocks"] .top-actions {
 .home-rank-head {
   padding: 9px 8px;
   border-bottom: 1px solid var(--line-soft);
-  color: var(--muted);
+  background: #000;
+  color: #d1d6df;
   font-size: 10px;
   font-weight: 720;
 }
@@ -714,6 +716,7 @@ body[data-screen="stocks"] .top-actions {
   min-height: 42px;
   padding: 9px 8px;
   border-bottom: 1px solid var(--line-soft);
+  background: #000;
   font-size: 13px;
 }
 
@@ -746,7 +749,7 @@ body[data-screen="stocks"] .top-actions {
   display: grid;
   place-items: center;
   border-radius: 5px;
-  background: #222833;
+  background: #121722;
   color: #dce2eb;
   font-size: 13px;
   font-weight: 760;
@@ -779,7 +782,7 @@ body[data-screen="stocks"] .top-actions {
   overflow: hidden;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: var(--surface);
+  background: #000;
 }
 
 .feed-row {
@@ -789,6 +792,7 @@ body[data-screen="stocks"] .top-actions {
   gap: 8px;
   padding: 10px;
   border-bottom: 1px solid var(--line-soft);
+  background: #000;
 }
 
 .feed-row:last-child,
@@ -808,12 +812,12 @@ body[data-screen="stocks"] .top-actions {
 }
 
 .feed-icon.is-low {
-  background: #271515;
+  background: #1a0d0d;
   color: var(--red);
 }
 
 .feed-icon.is-high {
-  background: #14241b;
+  background: #0e1c13;
   color: var(--green);
 }
 
@@ -840,6 +844,7 @@ body[data-screen="stocks"] .top-actions {
 .empty-feed {
   margin: 0;
   padding: 16px 12px;
+  background: #000;
   color: var(--muted);
   font-size: 13px;
   text-align: center;
