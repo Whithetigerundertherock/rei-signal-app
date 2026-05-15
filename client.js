@@ -271,8 +271,10 @@ const title = document.querySelector("#screenTitle");
 const topActions = document.querySelector("#topActions");
 const splashIntro = document.querySelector(".splash-intro");
 const AUTO_UPDATE_MS = 10000;
+const ACTIVE_REFRESH_MIN_MS = 15000;
 const MAX_PERIODS = 4;
 let autoUpdateTimer = null;
+let lastActiveRefreshAt = 0;
 
 function money(value) {
   return `$${value.toFixed(value >= 100 ? 2 : 2)}`;
@@ -500,11 +502,22 @@ function syncAutoUpdate() {
 
   if (!autoUpdateTimer) {
     autoUpdateTimer = setInterval(() => {
-      if (state.user && !state.isUpdating) {
+      if (state.user && !state.isUpdating && document.visibilityState !== "hidden") {
         updateRealIndicators({ silent: true });
       }
     }, AUTO_UPDATE_MS);
   }
+}
+
+async function refreshWhenActive(options = {}) {
+  if (!state.user || state.isUpdating || document.visibilityState === "hidden") return;
+
+  const now = Date.now();
+  if (!options.force && now - lastActiveRefreshAt < ACTIVE_REFRESH_MIN_MS) return;
+  lastActiveRefreshAt = now;
+
+  await loadServerAlertSettings();
+  await updateRealIndicators({ silent: true });
 }
 
 function render() {
@@ -1515,6 +1528,20 @@ document.addEventListener("keydown", (event) => {
   if (!state.authModalOpen || event.key !== "Enter") return;
   const loginButton = document.querySelector("[data-action='login']");
   loginButton?.click();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    refreshWhenActive({ force: true });
+  }
+});
+
+window.addEventListener("focus", () => {
+  refreshWhenActive({ force: true });
+});
+
+window.addEventListener("pageshow", () => {
+  refreshWhenActive({ force: true });
 });
 
 async function checkSession() {
