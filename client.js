@@ -286,8 +286,8 @@ const state = {
 const screenTitles = {
   home: "홈",
   stocks: "종목리스트",
-  ai: "시장분석",
-  alerts: "알림설정"
+  alerts: "알림",
+  settings: "설정"
 };
 
 const content = document.querySelector("#content");
@@ -610,15 +610,15 @@ function render() {
         ` : ""}
       </div>
     `,
-    ai: `${actionIconButton("현황 업데이트", "⟳", "update-indicators", state.isUpdating)}`,
-    alerts: ""
+    alerts: "",
+    settings: ""
   }[isAuthenticated ? state.screen : "home"];
 
   content.innerHTML = !state.authChecked ? renderAuthLoading() : !isAuthenticated ? renderAuthGate() : {
     home: renderHome,
     stocks: renderStocks,
-    ai: renderAi,
-    alerts: renderAlerts
+    alerts: renderAlerts,
+    settings: renderSettings
   }[state.screen]() + renderOverlay();
 
   if (isAuthenticated && !state.marketLoaded && !state.isUpdating) {
@@ -647,7 +647,7 @@ function renderAuthGate() {
         </svg>
       </span>
       <h2>내 계정으로 로그인</h2>
-      <p>저장한 종목과 알림설정은 로그인 후에만 볼 수 있습니다.</p>
+      <p>저장한 종목과 알림은 로그인 후에만 볼 수 있습니다.</p>
       <button class="small-btn is-primary" type="button" data-action="open-auth">로그인</button>
     </section>
     ${renderOverlay()}
@@ -738,7 +738,7 @@ function renderStocks() {
         return `<td class="${tone}${flashClass(`${stock.symbol}:rsi:${period}`)}">${value}</td>`;
       }).join("")}
       <td class="alert-cell">
-        <button class="stock-alert-btn" type="button" data-action="open-symbol-alerts" data-symbol="${stock.symbol}" aria-label="${stock.symbol} 알림설정 보기">
+        <button class="stock-alert-btn" type="button" data-action="open-symbol-alerts" data-symbol="${stock.symbol}" aria-label="${stock.symbol} 알림 보기">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9z"/>
             <path d="M10 21h4"/>
@@ -1126,16 +1126,7 @@ function renderAi() {
   `;
 }
 
-function renderAlerts() {
-  const symbols = [...new Set([...stocks.map((stock) => stock.symbol), ...alerts.map((alert) => alert.symbol)])];
-  if (state.selectedAlertSymbol !== "all" && !symbols.includes(state.selectedAlertSymbol)) {
-    state.selectedAlertSymbol = "all";
-  }
-  state.selectedAlertIds = new Set([...state.selectedAlertIds].filter((id) => alerts.some((alert) => alert.id === id)));
-  const selectedAlerts = state.selectedAlertSymbol === "all"
-    ? alerts
-    : alerts.filter((alert) => alert.symbol === state.selectedAlertSymbol);
-  const selectedCount = state.selectedAlertIds.size;
+function renderTelegramSettingsCard() {
   const isTelegramLinked = hasTelegramSettings();
   const telegramStatus = state.telegramSettingsStatus || (isTelegramLinked ? "테스트 메시지가 성공적으로 전송되었습니다." : "Bot token과 chat id를 입력해 주세요.");
 
@@ -1177,6 +1168,25 @@ function renderAlerts() {
         </div>
       ` : ""}
     </section>
+  `;
+}
+
+function renderSettings() {
+  return renderTelegramSettingsCard();
+}
+
+function renderAlerts() {
+  const symbols = [...new Set([...stocks.map((stock) => stock.symbol), ...alerts.map((alert) => alert.symbol)])];
+  if (state.selectedAlertSymbol !== "all" && !symbols.includes(state.selectedAlertSymbol)) {
+    state.selectedAlertSymbol = "all";
+  }
+  state.selectedAlertIds = new Set([...state.selectedAlertIds].filter((id) => alerts.some((alert) => alert.id === id)));
+  const selectedAlerts = state.selectedAlertSymbol === "all"
+    ? alerts
+    : alerts.filter((alert) => alert.symbol === state.selectedAlertSymbol);
+  const selectedCount = state.selectedAlertIds.size;
+
+  return `
     <section class="alert-list-actions">
       <button class="add-alert-button" type="button" data-action="add-alert"><span aria-hidden="true">+</span> 알림 추가</button>
       <button class="server-save-button" type="button" data-action="apply-alert-settings" ${state.alertSettingsDirty ? "" : "disabled"}>서버에 저장</button>
