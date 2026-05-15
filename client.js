@@ -53,13 +53,25 @@ const DEFAULT_TELEGRAM_SETTINGS = {
   chatId: "8450750011"
 };
 
-let alerts = [
+const defaultAlerts = [
   { id: "alert-1", symbol: "QLD", period: "120분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "QLD 120분봉 RSI가 30 이하로 내려왔습니다." },
   { id: "alert-2", symbol: "QLD", period: "30분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "QLD 30분봉 RSI가 30 이하로 내려왔습니다." },
   { id: "alert-3", symbol: "QLD", period: "15분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: false, channels: { app: false, kakao: false, telegram: true }, message: "QLD 15분봉 RSI가 30 이하로 내려왔습니다." },
   { id: "alert-4", symbol: "QLD", period: "60분봉", condition: "RSI 70 이상", threshold: 70, direction: "high", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "QLD 60분봉 RSI가 70 이상으로 올라갔습니다." },
   { id: "alert-5", symbol: "QLD", period: "30분봉", condition: "RSI 70 이상", threshold: 70, direction: "high", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "QLD 30분봉 RSI가 70 이상으로 올라갔습니다." }
 ];
+
+let alerts = cloneAlerts(defaultAlerts);
+
+function isLegacyDefaultAlerts(items) {
+  const legacySymbols = ["TQQQ", "SOXL", "NVDA", "TSLA", "QQQ"];
+  if (!Array.isArray(items) || items.length !== legacySymbols.length) return false;
+
+  return legacySymbols.every((symbol, index) => (
+    items[index]?.id === `alert-${index + 1}` &&
+    items[index]?.symbol === symbol
+  ));
+}
 
 function loadSavedAlerts() {
   try {
@@ -68,6 +80,12 @@ function loadSavedAlerts() {
 
     const saved = JSON.parse(raw);
     if (Array.isArray(saved)) {
+      if (isLegacyDefaultAlerts(saved)) {
+        alerts = cloneAlerts(defaultAlerts);
+        saveAlerts();
+        return;
+      }
+
       alerts = saved.map((alert, index) => ({
         id: alert.id || `alert-${index + 1}`,
         symbol: alert.symbol,
@@ -167,10 +185,11 @@ async function loadServerAlertSettings() {
 
     const payload = await response.json();
     if (payload.persisted && Array.isArray(payload.alerts)) {
-      alerts = payload.alerts;
+      alerts = isLegacyDefaultAlerts(payload.alerts) ? cloneAlerts(defaultAlerts) : payload.alerts;
       activeAlerts = cloneAlerts(alerts);
       alertIdCounter = Math.max(0, ...alerts.map((alert) => Number(String(alert.id).replace("alert-", "")) || 0)) + 1;
       saveAlerts();
+      if (isLegacyDefaultAlerts(payload.alerts)) await saveServerAlertSettings();
     } else if (!payload.persisted && alerts.length) {
       await saveServerAlertSettings();
     }
