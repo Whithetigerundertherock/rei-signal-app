@@ -54,11 +54,11 @@ const DEFAULT_TELEGRAM_SETTINGS = {
 };
 
 let alerts = [
-  { id: "alert-1", symbol: "TQQQ", period: "120분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "TQQQ 120분봉 RSI가 30 이하로 내려왔습니다." },
-  { id: "alert-2", symbol: "SOXL", period: "30분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "SOXL 30분봉 RSI가 30 이하로 내려왔습니다." },
-  { id: "alert-3", symbol: "NVDA", period: "15분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: false, channels: { app: false, kakao: false, telegram: true }, message: "NVDA 15분봉 RSI가 30 이하로 내려왔습니다." },
-  { id: "alert-4", symbol: "TSLA", period: "60분봉", condition: "RSI 70 이상", threshold: 70, direction: "high", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "TSLA 60분봉 RSI가 70 이상으로 올라갔습니다." },
-  { id: "alert-5", symbol: "QQQ", period: "30분봉", condition: "RSI 70 이상", threshold: 70, direction: "high", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "QQQ 30분봉 RSI가 70 이상으로 올라갔습니다." }
+  { id: "alert-1", symbol: "QLD", period: "120분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "QLD 120분봉 RSI가 30 이하로 내려왔습니다." },
+  { id: "alert-2", symbol: "QLD", period: "30분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "QLD 30분봉 RSI가 30 이하로 내려왔습니다." },
+  { id: "alert-3", symbol: "QLD", period: "15분봉", condition: "RSI 30 이하", threshold: 30, direction: "low", enabled: false, channels: { app: false, kakao: false, telegram: true }, message: "QLD 15분봉 RSI가 30 이하로 내려왔습니다." },
+  { id: "alert-4", symbol: "QLD", period: "60분봉", condition: "RSI 70 이상", threshold: 70, direction: "high", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "QLD 60분봉 RSI가 70 이상으로 올라갔습니다." },
+  { id: "alert-5", symbol: "QLD", period: "30분봉", condition: "RSI 70 이상", threshold: 70, direction: "high", enabled: true, channels: { app: false, kakao: false, telegram: true }, message: "QLD 30분봉 RSI가 70 이상으로 올라갔습니다." }
 ];
 
 function loadSavedAlerts() {
